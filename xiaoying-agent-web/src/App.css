@@ -1,0 +1,643 @@
+/* Tailwind directives are already in index.css */
+
+body {
+  margin: 0;
+  padding: 0;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  background-color: #ffffff;
+}
+
+#root {
+    width: 100%;
+    height: 100%;
+}
+
+/* Purple Flowing Border Animation (Removed as per user request) */
+/*
+@property --angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+
+@keyframes rotate-flow {
+  to {
+    --angle: 360deg;
+  }
+}
+
+.animate-rainbow {
+  position: relative;
+  box-shadow: 0 0 20px 2px rgba(168, 85, 247, 0.4); 
+}
+
+.animate-rainbow::before {
+  content: "";
+  position: absolute;
+  inset: 0; 
+  border-radius: inherit; 
+  padding: 3px; 
+  
+  background: conic-gradient(
+    from var(--angle), 
+    transparent 10%, 
+    #a855f7, 
+    #d946ef, 
+    #8b5cf6, 
+    transparent 60%
+  );
+  
+  mask: 
+    linear-gradient(#fff 0 0) content-box, 
+    linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  -webkit-mask: 
+    linear-gradient(#fff 0 0) content-box, 
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  
+  animation: rotate-flow 3s linear infinite;
+  pointer-events: none;
+  z-index: 50; 
+}
+*/
+
+.app-solid-bg {
+  background-color: #ffffff !important;
+}
+
+.coding-mode-shell {
+  background:
+    linear-gradient(135deg, rgba(236, 254, 255, 0.95), rgba(255, 255, 255, 0.95) 42%, rgba(240, 253, 244, 0.85)) !important;
+}
+
+.coding-main-surface {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(236, 254, 255, 0.36)) !important;
+}
+
+.coding-input-surface {
+  background:
+    linear-gradient(180deg, rgba(236, 254, 255, 0.1), rgba(255, 255, 255, 0.7));
+}
+
+.coding-panel-frame {
+  box-shadow:
+    -18px 0 44px rgba(8, 47, 73, 0.18),
+    inset 1px 0 0 rgba(103, 232, 249, 0.2);
+}
+
+.coding-mode-button.is-active {
+  position: relative;
+  overflow: hidden;
+  background:
+    linear-gradient(135deg, rgba(236, 254, 255, 0.96), rgba(204, 251, 241, 0.78) 45%, rgba(255, 255, 255, 0.92));
+}
+
+.coding-mode-button.is-active::after {
+  content: "";
+  position: absolute;
+  inset: 1px;
+  border-radius: 7px;
+  pointer-events: none;
+  background: linear-gradient(110deg, transparent 12%, rgba(255, 255, 255, 0.62) 42%, transparent 68%);
+  opacity: 0.58;
+}
+
+.coding-mode-button.is-idle {
+  position: relative;
+}
+
+.coding-mode-button.is-idle::before {
+  content: "";
+  position: absolute;
+  inset: 1px;
+  border-radius: 7px;
+  pointer-events: none;
+  border: 1px solid rgba(255, 255, 255, 0.52);
+}
+
+.coding-icon-shell {
+  position: relative;
+  overflow: hidden;
+}
+
+.coding-icon-shell.is-idle {
+  border: 1px solid rgba(212, 212, 216, 0.9);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.85),
+    0 1px 2px rgba(24, 24, 27, 0.08);
+}
+
+.coding-mode-button.is-idle:hover .coding-icon-shell.is-idle {
+  background:
+    linear-gradient(145deg, #f8fafc, #cffafe);
+  border-color: rgba(103, 232, 249, 0.9);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.95),
+    0 5px 14px rgba(8, 145, 178, 0.16);
+}
+
+.coding-icon-shell.is-active {
+  background:
+    linear-gradient(145deg, #0f172a 0%, #0e7490 48%, #34d399 100%);
+  border: 1px solid rgba(255, 255, 255, 0.42);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.5),
+    inset 0 -10px 18px rgba(15, 23, 42, 0.34),
+    0 8px 20px rgba(8, 145, 178, 0.28);
+}
+
+.coding-icon-shell.is-active::before {
+  content: "";
+  position: absolute;
+  inset: -45% -20%;
+  background: linear-gradient(115deg, transparent 32%, rgba(255, 255, 255, 0.68) 48%, transparent 62%);
+  transform: translateX(-55%);
+  animation: coding-icon-sheen 3.8s ease-in-out infinite;
+}
+
+@keyframes coding-icon-sheen {
+  0%, 62% {
+    transform: translateX(-55%);
+  }
+  82%, 100% {
+    transform: translateX(55%);
+  }
+}
+
+/* Dark mode override */
+@media (prefers-color-scheme: dark) {
+  .app-solid-bg {
+    background-color: rgb(24, 24, 27) !important;
+  }
+
+  .coding-mode-shell {
+    background:
+      linear-gradient(135deg, rgba(9, 9, 11, 1), rgba(12, 28, 33, 0.98) 52%, rgba(14, 30, 24, 0.96)) !important;
+  }
+
+  .coding-main-surface {
+    background:
+      linear-gradient(180deg, rgba(24, 24, 27, 0.98), rgba(8, 47, 73, 0.16)) !important;
+  }
+
+  .coding-input-surface {
+    background:
+      linear-gradient(180deg, rgba(8, 47, 73, 0.08), rgba(24, 24, 27, 0.52));
+  }
+
+  .coding-mode-button.is-active {
+    background:
+      linear-gradient(135deg, rgba(15, 23, 42, 0.96), rgba(8, 47, 73, 0.82) 48%, rgba(6, 78, 59, 0.58));
+  }
+
+  .coding-mode-button.is-idle::before {
+    border-color: rgba(255, 255, 255, 0.06);
+  }
+
+  .coding-icon-shell.is-idle {
+    border-color: rgba(63, 63, 70, 0.9);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.08),
+      0 1px 2px rgba(0, 0, 0, 0.24);
+  }
+
+  .coding-mode-button.is-idle:hover .coding-icon-shell.is-idle {
+    background:
+      linear-gradient(145deg, #18181b, #083344);
+    border-color: rgba(34, 211, 238, 0.45);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.12),
+      0 5px 16px rgba(8, 145, 178, 0.18);
+  }
+}
+
+/* XiaoYing workspace */
+:root {
+  font-family: "Avenir Next", "PingFang SC", "Microsoft YaHei UI", "Microsoft YaHei", sans-serif;
+  color: #1f2937;
+  background: #eef1f5;
+}
+
+body {
+  background:
+    radial-gradient(circle at 80% -10%, rgba(206, 226, 255, 0.58), transparent 32%),
+    linear-gradient(135deg, #f5f7fa 0%, #edf0f4 100%);
+  color: #1f2937;
+}
+
+.xiaoying-app-shell {
+  background:
+    radial-gradient(circle at 74% 7%, rgba(224, 239, 255, 0.7), transparent 25%),
+    linear-gradient(145deg, #fbfcfd 0%, #f4f6f9 52%, #eef1f5 100%) !important;
+  border: 1px solid rgba(198, 205, 216, 0.88) !important;
+  border-radius: 18px;
+  box-shadow: 0 22px 60px rgba(56, 70, 94, 0.16), 0 2px 8px rgba(56, 70, 94, 0.08) !important;
+}
+
+.xiaoying-app-shell.coding-mode-shell {
+  background:
+    radial-gradient(circle at 77% 8%, rgba(203, 242, 244, 0.82), transparent 25%),
+    linear-gradient(145deg, #f9fdfd 0%, #edf7f7 53%, #eef4f5 100%) !important;
+}
+
+.xiaoying-sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 48px;
+  padding: 2px 10px 10px;
+  margin-bottom: 8px;
+}
+
+.xiaoying-sidebar-brand img {
+  box-shadow: 0 7px 16px rgba(42, 93, 173, 0.2);
+}
+
+.xiaoying-sidebar-nav {
+  display: grid;
+  gap: 2px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(214, 220, 229, 0.72);
+}
+
+.xiaoying-sidebar-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-height: 38px;
+  width: 100%;
+  padding: 0 12px;
+  border-radius: 10px;
+  color: #526174;
+  font-size: 13px;
+  text-align: left;
+  transition: background 160ms ease, color 160ms ease, transform 160ms ease;
+}
+
+.xiaoying-sidebar-nav-item:hover {
+  color: #1e293b;
+  background: rgba(224, 229, 237, 0.82);
+  transform: translateX(1px);
+}
+
+.xiaoying-main-shell {
+  background: rgba(249, 250, 252, 0.92) !important;
+  border-color: rgba(218, 223, 231, 0.9) !important;
+}
+
+.xiaoying-topbar {
+  min-height: 54px;
+  padding: 0 16px !important;
+  background: rgba(250, 251, 253, 0.78) !important;
+  border-bottom-color: rgba(222, 227, 234, 0.88) !important;
+  backdrop-filter: blur(18px);
+}
+
+.xiaoying-topbar > div:first-child {
+  gap: 11px;
+}
+
+.xiaoying-topbar .relative.z-50 {
+  border-radius: 10px;
+}
+
+.xiaoying-main-content {
+  background: linear-gradient(180deg, rgba(250, 251, 253, 0.62), rgba(244, 247, 250, 0.92));
+}
+
+.xiaoying-main-content > div:first-child {
+  border-right-color: rgba(224, 229, 236, 0.88) !important;
+}
+
+.chat-content-rail,
+.chat-composer-rail {
+  width: min(100%, 1200px);
+  margin-inline: auto;
+}
+
+.chat-content-rail {
+  min-height: 100%;
+}
+
+.xiaoying-welcome-layout {
+  display: flex;
+  min-height: 0;
+  height: 100%;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  overflow-y: auto;
+  padding: clamp(24px, 5vh, 72px) 24px 26px;
+}
+
+.xiaoying-welcome {
+  position: relative;
+  display: flex;
+  width: min(100%, 980px);
+  flex: 1;
+  min-height: 0;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 16px 0 12px;
+  text-align: center;
+}
+
+.xiaoying-welcome-aura {
+  position: absolute;
+  top: 4%;
+  left: 50%;
+  z-index: 0;
+  width: min(76vw, 620px);
+  height: 300px;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: radial-gradient(ellipse, rgba(164, 206, 244, 0.18), rgba(221, 236, 252, 0.02) 65%, transparent 75%);
+  filter: blur(4px);
+  pointer-events: none;
+}
+
+.xiaoying-welcome-mark {
+  position: relative;
+  z-index: 1;
+  width: 58px;
+  height: 58px;
+  padding: 5px;
+  margin-bottom: 16px;
+  border: 1px solid rgba(186, 198, 216, 0.7);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow: 0 14px 34px rgba(84, 112, 157, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.95);
+}
+
+.xiaoying-welcome-kicker {
+  position: relative;
+  z-index: 1;
+  margin: 0 0 10px;
+  color: #6b7b91;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+}
+
+.xiaoying-welcome h1 {
+  position: relative;
+  z-index: 1;
+  margin: 0;
+  color: #111827;
+  font-size: clamp(28px, 3vw, 42px);
+  font-weight: 700;
+  letter-spacing: -0.045em;
+  line-height: 1.18;
+}
+
+.xiaoying-welcome h1 span {
+  background: linear-gradient(110deg, #13233c, #267ba7 54%, #3eaa96);
+  background-clip: text;
+  color: transparent;
+}
+
+.xiaoying-welcome-subtitle {
+  position: relative;
+  z-index: 1;
+  margin: 12px 0 20px;
+  color: #8b97a8;
+  font-size: 14px;
+}
+
+.xiaoying-mode-switch {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  gap: 3px;
+  padding: 4px;
+  border: 1px solid rgba(212, 219, 228, 0.9);
+  border-radius: 999px;
+  background: rgba(231, 235, 240, 0.76);
+  box-shadow: inset 0 1px 2px rgba(47, 61, 82, 0.06);
+}
+
+.xiaoying-mode-switch button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 34px;
+  padding: 0 16px;
+  border-radius: 999px;
+  color: #6d7785;
+  font-size: 13px;
+  font-weight: 600;
+  transition: background 180ms ease, color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+}
+
+.xiaoying-mode-switch button:hover {
+  color: #344357;
+}
+
+.xiaoying-mode-switch button.is-active {
+  color: #fff;
+  background: linear-gradient(135deg, #35455b, #1f2a3b);
+  box-shadow: 0 7px 14px rgba(35, 48, 67, 0.22);
+}
+
+.xiaoying-quick-actions {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  max-width: 820px;
+  margin: 26px 0 22px;
+}
+
+.xiaoying-quick-actions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 35px;
+  padding: 0 14px;
+  border: 1px solid rgba(214, 221, 231, 0.95);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.64);
+  color: #607086;
+  font-size: 12px;
+  box-shadow: 0 4px 12px rgba(74, 92, 119, 0.05);
+  transition: all 180ms ease;
+}
+
+.xiaoying-quick-actions button:hover {
+  border-color: rgba(86, 157, 185, 0.55);
+  color: #1c667f;
+  background: #fff;
+  box-shadow: 0 8px 20px rgba(56, 131, 160, 0.13);
+  transform: translateY(-2px);
+}
+
+.xiaoying-code-workspace-link {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin: -4px 0 10px;
+  color: #267b94;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.xiaoying-code-workspace-link:hover {
+  color: #14556c;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.xiaoying-welcome-composer {
+  position: relative;
+  z-index: 2;
+  width: min(100%, 900px);
+  margin-top: auto;
+  padding-top: 8px;
+}
+
+.xiaoying-chat-input {
+  width: 100%;
+  padding: 0;
+}
+
+.xiaoying-composer-card {
+  border-color: transparent !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.xiaoying-composer-card > div {
+  border-color: rgba(194, 204, 218, 0.9) !important;
+  border-radius: 22px !important;
+  background: rgba(255, 255, 255, 0.88) !important;
+  box-shadow: 0 15px 35px rgba(65, 84, 112, 0.12), 0 2px 5px rgba(65, 84, 112, 0.06);
+  transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+}
+
+.xiaoying-composer-card:focus-within > div {
+  border-color: rgba(75, 147, 178, 0.78) !important;
+  box-shadow: 0 18px 42px rgba(49, 111, 145, 0.16), 0 0 0 4px rgba(115, 191, 213, 0.12);
+  transform: translateY(-1px);
+}
+
+.xiaoying-composer-content {
+  display: grid !important;
+  grid-template-columns: auto auto auto 1fr auto;
+  grid-template-rows: minmax(88px, auto) auto;
+  grid-template-areas:
+    "textarea textarea textarea textarea textarea"
+    "model attach voice spacer send";
+  gap: 7px 9px !important;
+  padding: 14px 16px 12px !important;
+}
+
+.xiaoying-composer-content > textarea {
+  grid-area: textarea;
+  width: 100%;
+  min-height: 88px !important;
+  padding: 4px 3px !important;
+  color: #27364b !important;
+  font-size: 15px !important;
+  line-height: 1.65 !important;
+  align-self: start;
+}
+
+.xiaoying-composer-content > div:first-child {
+  grid-area: model;
+}
+
+.xiaoying-composer-content > input + button {
+  grid-area: attach;
+}
+
+.xiaoying-composer-content > input + button + button {
+  grid-area: voice;
+}
+
+.xiaoying-composer-content > button:last-child {
+  grid-area: send;
+  align-self: center;
+  border-radius: 999px;
+  background: #d9dee6;
+  color: #fff;
+}
+
+.xiaoying-composer-content > button:last-child:not(:disabled) {
+  background: linear-gradient(135deg, #344a63, #1f9a9a);
+  box-shadow: 0 7px 14px rgba(43, 128, 139, 0.24);
+}
+
+.xiaoying-composer-content > button:not(:last-child):not(.xiaoying-composer-model) {
+  color: #7b8797;
+}
+
+.xiaoying-composer-options .coding-mode-button {
+  display: none !important;
+}
+
+.xiaoying-composer-options {
+  display: flex !important;
+  margin-top: 8px !important;
+}
+
+.xiaoying-composer-hint {
+  display: none !important;
+}
+
+.xiaoying-project-picker {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  gap: 9px;
+  min-height: 40px;
+  padding: 0 12px;
+  margin-top: 8px;
+  color: #77859a;
+  font-size: 12px;
+  text-align: left;
+  transition: color 160ms ease, background 160ms ease;
+}
+
+.xiaoying-project-picker:hover {
+  color: #2e6e87;
+  background: rgba(222, 233, 241, 0.54);
+  border-radius: 10px;
+}
+
+@media (max-width: 760px) {
+  .xiaoying-welcome-layout {
+    padding-inline: 14px;
+  }
+
+  .xiaoying-welcome h1 {
+    font-size: 30px;
+  }
+
+  .xiaoying-quick-actions {
+    margin-top: 20px;
+  }
+
+  .xiaoying-composer-content {
+    grid-template-columns: auto auto 1fr auto;
+    grid-template-areas:
+      "textarea textarea textarea textarea"
+      "model attach voice send";
+  }
+}
+
+@media (max-width: 760px) {
+  .chat-content-rail,
+  .chat-composer-rail {
+    width: 100%;
+  }
+}

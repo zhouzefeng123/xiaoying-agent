@@ -1,0 +1,95 @@
+{
+  "case_id": "github_large_repo_refactor_flask_async_dispatch_deep_chain",
+  "repo_url": "https://github.com/pallets/flask.git",
+  "repo_ref": "9fcd34c9f3065640bd1cd86234216ca068633fb9",
+  "task_file": "flask_async_dispatch_deep_chain_task.md",
+  "follow_up_files": [
+    "flask_async_dispatch_deep_chain_follow_up_1.md",
+    "flask_async_dispatch_deep_chain_follow_up_2.md",
+    "flask_async_dispatch_deep_chain_follow_up_3.md"
+  ],
+  "verify_commands": [
+    "python -m py_compile src/flask/helpers.py src/flask/app.py src/flask/ctx.py src/flask/templating.py src/flask/views.py tests/test_async.py tests/test_signals.py tests/test_views.py",
+    "python -m pytest tests/test_async.py tests/test_signals.py tests/test_templating.py tests/test_views.py -q",
+    "python -m pytest tests/test_basic.py::test_before_after_request_order tests/test_basic.py::test_teardown_request_handler_error -q",
+    "git diff --check"
+  ],
+  "expected_paths": [
+    "src/flask/helpers.py",
+    "src/flask/app.py",
+    "src/flask/ctx.py",
+    "src/flask/templating.py",
+    "src/flask/views.py",
+    "tests/test_async.py",
+    "tests/test_signals.py",
+    "tests/test_views.py"
+  ],
+  "allowed_changed_paths": [
+    "src/flask/helpers.py",
+    "src/flask/app.py",
+    "src/flask/ctx.py",
+    "src/flask/templating.py",
+    "src/flask/views.py",
+    "tests/test_async.py",
+    "tests/test_signals.py",
+    "tests/test_views.py"
+  ],
+  "required_content_markers": {
+    "src/flask/helpers.py": [
+      "def _ensure_sync_call\\(",
+      "return app\\.ensure_sync\\(func\\)\\(\\*args, \\*\\*kwargs\\)",
+      "def _send_signal\\(",
+      "_async_wrapper=app\\.ensure_sync"
+    ],
+    "src/flask/app.py": [
+      "_ensure_sync_call\\(self,",
+      "_send_signal\\(self,"
+    ],
+    "src/flask/ctx.py": [
+      "_ensure_sync_call\\(",
+      "_send_signal\\("
+    ],
+    "src/flask/templating.py": [
+      "_send_signal\\(app,"
+    ],
+    "src/flask/views.py": [
+      "_ensure_sync_call\\("
+    ],
+    "tests/test_async.py": [
+      "async",
+      "ensure_sync"
+    ],
+    "tests/test_signals.py": [
+      "async",
+      "template"
+    ],
+    "tests/test_views.py": [
+      "async"
+    ]
+  },
+  "forbidden_content_markers": {
+    "src/flask/app.py": [
+      "self\\.ensure_sync\\([^\\n]+\\)\\(",
+      "_async_wrapper=self\\.ensure_sync"
+    ],
+    "src/flask/ctx.py": [
+      "\\.ensure_sync\\([^\\n]+\\)\\(",
+      "_async_wrapper=self\\.app\\.ensure_sync"
+    ],
+    "src/flask/templating.py": [
+      "_async_wrapper=app\\.ensure_sync"
+    ],
+    "src/flask/views.py": [
+      "current_app\\.ensure_sync"
+    ]
+  },
+  "min_changed_files": 8,
+  "max_changed_files": 8,
+  "min_turns": 4,
+  "min_total_tool_calls": 32,
+  "min_distinct_read_paths": 8,
+  "require_verification_each_turn": false,
+  "allow_subagents": false,
+  "timeout": 1500,
+  "max_total_duration": 4500
+}

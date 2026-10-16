@@ -1,0 +1,495 @@
+{
+  "write_cases": [
+    {
+      "name": "reuse_exact_duplicate",
+      "seed": [
+        {
+          "id": "pref-1",
+          "layer": 1,
+          "category": "preference",
+          "content": "回答尽量简洁",
+          "source": "user_input",
+          "created_at": 100,
+          "updated_at": 100,
+          "last_accessed_at": 100
+        }
+      ],
+      "request": {
+        "category": "preference",
+        "content": "回答尽量简洁",
+        "source": "Reflection",
+        "trigger": "reflection",
+        "allow_semantic_dedup": true
+      },
+      "expected": {
+        "action": "reused_existing",
+        "memory_id": "pref-1",
+        "reason_codes": [
+          "contract_applied",
+          "source_trust_evaluated",
+          "exact_duplicate",
+          "existing_source_preferred"
+        ],
+        "final_memory_count": 1,
+        "final_content": "回答尽量简洁",
+        "final_source": "user_input"
+      }
+    },
+    {
+      "name": "reject_lower_trust_conflict",
+      "seed": [
+        {
+          "id": "pref-style",
+          "layer": 1,
+          "category": "preference",
+          "content": "**response_style**\n回答尽量简洁",
+          "source": "user_input",
+          "created_at": 100,
+          "updated_at": 100,
+          "last_accessed_at": 100
+        }
+      ],
+      "request": {
+        "category": "preference",
+        "content": "**response_style**\n回答尽量详细",
+        "source": "Reflection",
+        "trigger": "reflection"
+      },
+      "expected": {
+        "action": "rejected_conflict",
+        "memory_id": "pref-style",
+        "reason_codes": [
+          "conflict_key_detected",
+          "conflict_detected",
+          "conflict_rejected",
+          "existing_source_preferred"
+        ],
+        "final_memory_count": 1,
+        "final_content": "**response_style**\n回答尽量简洁",
+        "final_source": "user_input"
+      }
+    },
+    {
+      "name": "overwrite_higher_trust_conflict",
+      "seed": [
+        {
+          "id": "pref-style",
+          "layer": 1,
+          "category": "preference",
+          "content": "**response_style**\n回答尽量简洁",
+          "source": "Reflection",
+          "created_at": 100,
+          "updated_at": 100,
+          "last_accessed_at": 100
+        }
+      ],
+      "request": {
+        "category": "preference",
+        "content": "**response_style**\n回答尽量详细",
+        "source": "user_input",
+        "trigger": "user_override"
+      },
+      "expected": {
+        "action": "overwrote_existing",
+        "memory_id": "pref-style",
+        "reason_codes": [
+          "conflict_key_detected",
+          "conflict_detected",
+          "overwrite_performed",
+          "incoming_source_preferred"
+        ],
+        "final_memory_count": 1,
+        "final_content": "**response_style**\n回答尽量详细",
+        "final_source": "user_input"
+      }
+    },
+    {
+      "name": "overwrite_session_summary_by_session_id",
+      "seed": [
+        {
+          "id": "summary-1",
+          "layer": 2,
+          "category": "session_summary",
+          "content": "[session_id:session-1] [Session 标题]: 旧摘要",
+          "source": "Summarizer",
+          "created_at": 100,
+          "updated_at": 100,
+          "last_accessed_at": 100
+        }
+      ],
+      "request": {
+        "category": "session_summary",
+        "content": "[session_id:session-1] [Session 标题]: 新摘要",
+        "source": "Summarizer",
+        "trigger": "session_summary",
+        "allow_overwrite": true
+      },
+      "expected": {
+        "action": "overwrote_existing",
+        "memory_id": "summary-1",
+        "reason_codes": [
+          "conflict_key_detected",
+          "conflict_detected",
+          "overwrite_performed",
+          "explicit_overwrite_requested"
+        ],
+        "final_memory_count": 1,
+        "final_content": "[session_id:session-1] [Session 标题]: 新摘要",
+        "final_source": "Summarizer"
+      }
+    },
+    {
+      "name": "cross_category_same_title_inserts_new_memory",
+      "seed": [
+        {
+          "id": "pref-style",
+          "layer": 1,
+          "category": "preference",
+          "content": "**response_style**\n回答尽量简洁",
+          "source": "user_input",
+          "created_at": 100,
+          "updated_at": 100,
+          "last_accessed_at": 100
+        }
+      ],
+      "request": {
+        "category": "instruction",
+        "content": "**response_style**\n回答时先给结论再展开",
+        "source": "user_input",
+        "trigger": "user_instruction"
+      },
+      "expected": {
+        "action": "inserted",
+        "memory_id": "",
+        "reason_codes": [
+          "contract_applied",
+          "source_trust_evaluated",
+          "conflict_key_detected",
+          "embedding_unavailable",
+          "insert_performed"
+        ],
+        "final_memory_count": 1,
+        "total_memory_count": 2,
+        "final_content": "**response_style**\n回答时先给结论再展开",
+        "final_source": "user_input"
+      }
+    }
+  ],
+  "search_cases": [
+    {
+      "name": "category_list_fallback_without_embedder",
+      "seed": [
+        {
+          "id": "fact-redis",
+          "layer": 3,
+          "category": "fact",
+          "content": "Redis endpoint 是 redis://localhost:6379",
+          "source": "user_input",
+          "created_at": 100,
+          "updated_at": 100,
+          "last_accessed_at": 100
+        },
+        {
+          "id": "fact-postgres",
+          "layer": 3,
+          "category": "fact",
+          "content": "Postgres DSN 是 postgres://localhost:5432/app",
+          "source": "user_input",
+          "created_at": 100,
+          "updated_at": 100,
+          "last_accessed_at": 100
+        }
+      ],
+      "request": {
+        "mode": "category",
+        "query": "完全不匹配的查询",
+        "category": "fact",
+        "stage": "eval_category_fallback",
+        "limit": 10
+      },
+      "expected": {
+        "result_ids": ["fact-postgres", "fact-redis"],
+        "result_count": 2,
+        "fallback_path": "category_list",
+        "used_channels": [],
+        "reason_codes": [
+          "contract_applied",
+          "budget_applied",
+          "fts_used",
+          "list_fallback",
+          "vector_unavailable",
+          "category_filtered"
+        ]
+      }
+    },
+    {
+      "name": "category_list_budget_limit_keeps_top_ranked",
+      "seed": [
+        {
+          "id": "fact-oldest",
+          "layer": 3,
+          "category": "fact",
+          "content": "旧服务地址是 old://service",
+          "source": "user_input",
+          "created_at": 100,
+          "updated_at": 100,
+          "last_accessed_at": 0
+        },
+        {
+          "id": "fact-middle",
+          "layer": 3,
+          "category": "fact",
+          "content": "中间服务地址是 middle://service",
+          "source": "user_input",
+          "created_at": 100,
+          "updated_at": 200,
+          "last_accessed_at": 0
+        },
+        {
+          "id": "fact-newest",
+          "layer": 3,
+          "category": "fact",
+          "content": "新服务地址是 new://service",
+          "source": "user_input",
+          "created_at": 100,
+          "updated_at": 300,
+          "last_accessed_at": 0
+        }
+      ],
+      "request": {
+        "mode": "category",
+        "query": "完全不匹配的查询",
+        "category": "fact",
+        "stage": "eval_category_budget_limit",
+        "limit": 1
+      },
+      "expected": {
+        "result_ids": ["fact-newest"],
+        "result_count": 1,
+        "fallback_path": "category_list",
+        "used_channels": [],
+        "reason_codes": [
+          "contract_applied",
+          "budget_applied",
+          "fts_used",
+          "list_fallback",
+          "vector_unavailable",
+          "category_filtered"
+        ]
+      }
+    },
+    {
+      "name": "category_list_tie_breaks_by_id_stably",
+      "seed": [
+        {
+          "id": "fact-b",
+          "layer": 3,
+          "category": "fact",
+          "content": "B 服务地址是 b://service",
+          "source": "user_input",
+          "created_at": 100,
+          "updated_at": 100,
+          "last_accessed_at": 0
+        },
+        {
+          "id": "fact-a",
+          "layer": 3,
+          "category": "fact",
+          "content": "A 服务地址是 a://service",
+          "source": "user_input",
+          "created_at": 100,
+          "updated_at": 100,
+          "last_accessed_at": 0
+        },
+        {
+          "id": "fact-c",
+          "layer": 3,
+          "category": "fact",
+          "content": "C 服务地址是 c://service",
+          "source": "user_input",
+          "created_at": 100,
+          "updated_at": 100,
+          "last_accessed_at": 0
+        }
+      ],
+      "request": {
+        "mode": "category",
+        "query": "完全不匹配的查询",
+        "category": "fact",
+        "stage": "eval_category_tie_break",
+        "limit": 3
+      },
+      "expected": {
+        "result_ids": ["fact-a", "fact-b", "fact-c"],
+        "result_count": 3,
+        "fallback_path": "category_list",
+        "used_channels": [],
+        "reason_codes": [
+          "contract_applied",
+          "budget_applied",
+          "fts_used",
+          "list_fallback",
+          "vector_unavailable",
+          "category_filtered"
+        ]
+      }
+    },
+    {
+      "name": "global_fts_hit_without_embedder",
+      "seed": [
+        {
+          "id": "fact-redis",
+          "layer": 3,
+          "category": "fact",
+          "content": "Redis endpoint 是 redis://localhost:6379",
+          "source": "user_input",
+          "created_at": 100,
+          "updated_at": 100,
+          "last_accessed_at": 100
+        },
+        {
+          "id": "fact-postgres",
+          "layer": 3,
+          "category": "fact",
+          "content": "Postgres DSN 是 postgres://localhost:5432/app",
+          "source": "user_input",
+          "created_at": 100,
+          "updated_at": 100,
+          "last_accessed_at": 100
+        }
+      ],
+      "request": {
+        "mode": "global",
+        "query": "redis endpoint",
+        "stage": "eval_global_search",
+        "limit": 10
+      },
+      "expected": {
+        "result_ids": ["fact-redis"],
+        "result_count": 1,
+        "fallback_path": "fts_only",
+        "used_channels": ["fts"],
+        "reason_codes": [
+          "contract_applied",
+          "budget_applied",
+          "fts_used",
+          "vector_unavailable"
+        ]
+      }
+    },
+    {
+      "name": "global_budget_defaults_when_limit_and_candidates_non_positive",
+      "seed": [
+        {
+          "id": "fact-redis",
+          "layer": 3,
+          "category": "fact",
+          "content": "Redis endpoint 是 redis://localhost:6379",
+          "source": "user_input",
+          "created_at": 100,
+          "updated_at": 100,
+          "last_accessed_at": 100
+        }
+      ],
+      "request": {
+        "mode": "global",
+        "query": "redis endpoint",
+        "stage": "eval_budget_default_normalization",
+        "limit": 0,
+        "max_fts_candidates": 0,
+        "max_vector_candidates": 0
+      },
+      "expected": {
+        "result_ids": ["fact-redis"],
+        "result_count": 1,
+        "normalized_limit": 10,
+        "fts_candidate_limit": 20,
+        "vector_candidate_limit": 20,
+        "fallback_path": "fts_only",
+        "used_channels": ["fts"],
+        "reason_codes": [
+          "contract_applied",
+          "budget_applied",
+          "fts_used",
+          "vector_unavailable"
+        ]
+      }
+    },
+    {
+      "name": "global_budget_raises_candidates_below_limit",
+      "seed": [
+        {
+          "id": "fact-redis",
+          "layer": 3,
+          "category": "fact",
+          "content": "Redis endpoint 是 redis://localhost:6379",
+          "source": "user_input",
+          "created_at": 100,
+          "updated_at": 100,
+          "last_accessed_at": 100
+        }
+      ],
+      "request": {
+        "mode": "global",
+        "query": "redis endpoint",
+        "stage": "eval_budget_raise_small_candidates",
+        "limit": 4,
+        "max_fts_candidates": 1,
+        "max_vector_candidates": -3
+      },
+      "expected": {
+        "result_ids": ["fact-redis"],
+        "result_count": 1,
+        "normalized_limit": 4,
+        "fts_candidate_limit": 8,
+        "vector_candidate_limit": 8,
+        "fallback_path": "fts_only",
+        "used_channels": ["fts"],
+        "reason_codes": [
+          "contract_applied",
+          "budget_applied",
+          "fts_used",
+          "vector_unavailable"
+        ]
+      }
+    },
+    {
+      "name": "global_budget_preserves_candidates_when_not_below_limit",
+      "seed": [
+        {
+          "id": "fact-redis",
+          "layer": 3,
+          "category": "fact",
+          "content": "Redis endpoint 是 redis://localhost:6379",
+          "source": "user_input",
+          "created_at": 100,
+          "updated_at": 100,
+          "last_accessed_at": 100
+        }
+      ],
+      "request": {
+        "mode": "global",
+        "query": "redis endpoint",
+        "stage": "eval_budget_preserve_candidates",
+        "limit": 4,
+        "max_fts_candidates": 6,
+        "max_vector_candidates": 9
+      },
+      "expected": {
+        "result_ids": ["fact-redis"],
+        "result_count": 1,
+        "normalized_limit": 4,
+        "fts_candidate_limit": 6,
+        "vector_candidate_limit": 9,
+        "fallback_path": "fts_only",
+        "used_channels": ["fts"],
+        "reason_codes": [
+          "contract_applied",
+          "budget_applied",
+          "fts_used",
+          "vector_unavailable"
+        ]
+      }
+    }
+  ]
+}

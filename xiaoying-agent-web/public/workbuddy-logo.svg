@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="none">
+  <defs>
+    <linearGradient id="shell" x1="70" y1="50" x2="190" y2="205" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#fff"/>
+      <stop offset=".52" stop-color="#e8f2ff"/>
+      <stop offset="1" stop-color="#8bb9f5"/>
+    </linearGradient>
+    <linearGradient id="side" x1="30" y1="112" x2="54" y2="155" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#ffcf80"/>
+      <stop offset="1" stop-color="#f89b43"/>
+    </linearGradient>
+    <linearGradient id="face" x1="77" y1="86" x2="178" y2="164" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#1c3961"/>
+      <stop offset="1" stop-color="#07162e"/>
+    </linearGradient>
+    <radialGradient id="eye" cx="0" cy="0" r="1" gradientTransform="matrix(0 23 -17 0 0 0)" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#b8ffff"/>
+      <stop offset="1" stop-color="#34c8ee"/>
+    </radialGradient>
+    <filter id="glow" x="94" y="2" width="68" height="75" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse">
+      <feGaussianBlur stdDeviation="7"/>
+    </filter>
+  </defs>
+  <circle cx="128" cy="34" r="22" fill="#ffe889" opacity=".65" filter="url(#glow)"/>
+  <path d="M124 43h8v22h-8z" fill="#4386d6" stroke="#2459a8" stroke-width="3"/>
+  <circle cx="128" cy="31" r="12" fill="#fffef5" stroke="#ffdf61" stroke-width="4"/>
+  <path d="M115 66c-10 0-17 6-22 13h70c-5-7-12-13-22-13h-26Z" fill="#77b8ff" stroke="#2b62b4" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M53 178c-16 7-23 23-20 37 2 10 9 14 17 10l25-22-22-25Zm150 0c16 7 23 23 20 37-2 10-9 14-17 10l-25-22 22-25Z" fill="url(#shell)" stroke="#2d62b2" stroke-width="4"/>
+  <path d="M91 192c-1 22 8 37 22 39 12 1 20-8 21-25l-43-14Zm74 0c1 22-8 37-22 39-12 1-20-8-21-25l43-14Z" fill="url(#shell)" stroke="#2d62b2" stroke-width="4"/>
+  <path d="M43 108c-13 5-18 20-18 37s5 32 18 37l11-12v-50l-11-12Zm170 0c13 5 18 20 18 37s-5 32-18 37l-11-12v-50l11-12Z" fill="#93c5ff" stroke="#2c62b6" stroke-width="4"/>
+  <path d="M33 121v48" stroke="url(#side)" stroke-width="8" stroke-linecap="round"/>
+  <path d="M223 121v48" stroke="url(#side)" stroke-width="8" stroke-linecap="round"/>
+  <path d="M128 57c-55 0-92 34-92 87v31c0 46 40 72 92 72s92-26 92-72v-31c0-53-37-87-92-87Z" fill="url(#shell)" stroke="#2d62b5" stroke-width="5"/>
+  <path d="M128 72c-42 0-69 25-69 65v14c0 27 26 39 69 39s69-12 69-39v-14c0-40-27-65-69-65Z" fill="url(#face)" stroke="#3975c5" stroke-width="4"/>
+  <g id="eyes">
+    <!-- 眼睛：左右环视动画（SMIL，可在 <img> 中播放） -->
+    <animateTransform
+      attributeName="transform"
+      type="translate"
+      values="0 0; 0 0; -10 0; -10 0; 10 0; 10 0; 0 0"
+      keyTimes="0; 0.16; 0.3; 0.44; 0.58; 0.72; 1"
+      calcMode="spline"
+      keySplines="0 0 1 1; 0.4 0 0.2 1; 0 0 1 1; 0.4 0 0.2 1; 0 0 1 1; 0.4 0 0.2 1"
+      dur="6s"
+      repeatCount="indefinite"
+    />
+    <ellipse cx="96" cy="128" rx="14" ry="19" fill="url(#eye)"/>
+    <ellipse cx="160" cy="128" rx="14" ry="19" fill="url(#eye)"/>
+  </g>
+  <path d="M118 144c5 7 15 7 20 0" stroke="#ffae4d" stroke-width="4" stroke-linecap="round"/>
+  <ellipse cx="78" cy="144" rx="8" ry="4" fill="#f5a7bd"/>
+  <ellipse cx="178" cy="144" rx="8" ry="4" fill="#f5a7bd"/>
+  <path d="M75 86c7-9 16-15 26-18" stroke="#fff" stroke-opacity=".6" stroke-width="7" stroke-linecap="round"/>
+  <path d="M50 181c19 15 45 21 78 21s59-6 78-21" stroke="#4c83cb" stroke-opacity=".52" stroke-width="3"/>
+</svg>

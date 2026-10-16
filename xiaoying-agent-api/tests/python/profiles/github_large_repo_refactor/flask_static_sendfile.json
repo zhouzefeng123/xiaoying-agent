@@ -1,0 +1,60 @@
+{
+  "case_id": "github_large_repo_refactor_flask_static_sendfile",
+  "repo_url": "https://github.com/pallets/flask.git",
+  "repo_ref": "9fcd34c9f3065640bd1cd86234216ca068633fb9",
+  "task_file": "flask_static_sendfile_task.md",
+  "verify_commands": [
+    "python -m py_compile src/flask/helpers.py src/flask/app.py src/flask/blueprints.py tests/test_helpers.py tests/test_blueprints.py",
+    "python -m pytest tests/test_helpers.py::TestSendfile::test_send_static_file_shared_helper tests/test_blueprints.py::test_blueprint_static_uses_shared_helper -q",
+    "git diff --check"
+  ],
+  "expected_paths": [
+    "src/flask/helpers.py",
+    "src/flask/app.py",
+    "src/flask/blueprints.py",
+    "tests/test_helpers.py",
+    "tests/test_blueprints.py"
+  ],
+  "allowed_changed_paths": [
+    "src/flask/helpers.py",
+    "src/flask/app.py",
+    "src/flask/blueprints.py",
+    "tests/test_helpers.py",
+    "tests/test_blueprints.py"
+  ],
+  "required_content_markers": {
+    "src/flask/helpers.py": [
+      "def _prepare_static_file_response\\(",
+      "static_owner\\.has_static_folder",
+      "static_owner\\.get_send_file_max_age\\(filename\\)",
+      "send_from_directory\\("
+    ],
+    "src/flask/app.py": [
+      "_prepare_static_file_response\\(self, filename\\)"
+    ],
+    "src/flask/blueprints.py": [
+      "_prepare_static_file_response\\(self, filename\\)"
+    ],
+    "tests/test_helpers.py": [
+      "def test_send_static_file_shared_helper\\("
+    ],
+    "tests/test_blueprints.py": [
+      "def test_blueprint_static_uses_shared_helper\\("
+    ]
+  },
+  "forbidden_content_markers": {
+    "src/flask/app.py": [
+      "max_age = self\\.get_send_file_max_age\\(filename\\)",
+      "return send_from_directory\\("
+    ],
+    "src/flask/blueprints.py": [
+      "max_age = self\\.get_send_file_max_age\\(filename\\)",
+      "return send_from_directory\\("
+    ]
+  },
+  "min_changed_files": 5,
+  "max_changed_files": 5,
+  "allow_subagents": false,
+  "timeout": 1200,
+  "max_total_duration": 1500
+}

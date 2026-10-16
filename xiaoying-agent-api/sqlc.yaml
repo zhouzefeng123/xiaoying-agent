@@ -1,0 +1,17 @@
+version: "2"
+sql:
+  - engine: "mysql"
+    schema: "internal/db/migrations"
+    queries: "internal/db/sql"
+    gen:
+      go:
+        package: "db"
+        out: "internal/db"
+        emit_json_tags: true
+        emit_prepared_queries: true
+        # The Querier interface is maintained by hand in querier.go: half of the
+        # statements live in queries_manual.go, which sqlc would not see when
+        # regenerating the interface.
+        emit_interface: false
+        emit_exact_table_names: false
+        emit_empty_slices: true

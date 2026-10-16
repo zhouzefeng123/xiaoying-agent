@@ -1,0 +1,384 @@
+{
+  "database": {
+    "host": "127.0.0.1",
+    "port": 3306,
+    "user": "root",
+    "password": "",
+    "name": "auramate"
+  },
+  "agents": {
+    "coder": {
+      "dynamicDenoise": true,
+      "maxTokens": 8192,
+      "model": "qwen3.6-plus",
+      "reasoningEffort": ""
+    },
+    "life": {
+      "maxTokens": 8192,
+      "model": "qwen3.6-plus",
+      "reasoningEffort": ""
+    },
+    "normal": {
+      "maxTokens": 8192,
+      "model": "qwen3.6-plus",
+      "reasoningEffort": ""
+    },
+    "summarizer": {
+      "maxTokens": 8192,
+      "model": "qwen3.6-plus",
+      "reasoningEffort": ""
+    },
+    "task": {
+      "maxTokens": 8192,
+      "model": "qwen3.6-plus",
+      "reasoningEffort": ""
+    },
+    "title": {
+      "maxTokens": 80,
+      "model": "qwen3.6-plus",
+      "reasoningEffort": ""
+    },
+    "visual": {
+      "maxTokens": 8192,
+      "model": "qwen3.6-plus",
+      "reasoningEffort": ""
+    }
+  },
+  "auraAuth": {
+    "token": ""
+  },
+  "data": {
+    "directory": "database"
+  },
+  "debug": true,
+  "llm": {},
+  "main_model": {
+    "apiKey": "",
+    "baseURL": "https://api.deepseek.com",
+    "model": "deepseek-v4-flash",
+    "provider": "openai"
+  },
+  "models": {
+    "ark-code-latest": {
+      "api_model": "",
+      "can_reason": false,
+      "context_window": 256000,
+      "cost_per_1m_in": 0,
+      "cost_per_1m_in_cached": 0,
+      "cost_per_1m_out": 0,
+      "cost_per_1m_out_cached": 0,
+      "default_max_tokens": 8192,
+      "id": "ark-code-latest",
+      "name": "DeepSeek-V4-Pro",
+      "provider": "openai",
+      "supports_attachments": true
+    },
+    "claude-3-7-sonnet": {
+      "api_model": "claude-3-7-sonnet-latest",
+      "can_reason": true,
+      "context_window": 200000,
+      "cost_per_1m_in": 0,
+      "cost_per_1m_in_cached": 0,
+      "cost_per_1m_out": 0,
+      "cost_per_1m_out_cached": 0,
+      "default_max_tokens": 8192,
+      "id": "claude-3-7-sonnet",
+      "name": "Claude 3.7 Sonnet",
+      "provider": "anthropic",
+      "supports_attachments": true
+    },
+    "deepseek-chat": {
+      "api_model": "deepseek-chat",
+      "can_reason": false,
+      "context_window": 128000,
+      "cost_per_1m_in": 0,
+      "cost_per_1m_in_cached": 0,
+      "cost_per_1m_out": 0,
+      "cost_per_1m_out_cached": 0,
+      "default_max_tokens": 8192,
+      "id": "deepseek-chat",
+      "name": "DeepSeek Chat",
+      "provider": "deepseek",
+      "supports_attachments": false
+    },
+    "deepseek-r1": {
+      "api_model": "deepseek-reasoner",
+      "can_reason": true,
+      "context_window": 128000,
+      "cost_per_1m_in": 0,
+      "cost_per_1m_in_cached": 0,
+      "cost_per_1m_out": 0,
+      "cost_per_1m_out_cached": 0,
+      "default_max_tokens": 8192,
+      "id": "deepseek-reasoner",
+      "name": "DeepSeek R1",
+      "provider": "deepseek",
+      "supports_attachments": false
+    },
+    "deepseek-v3": {
+      "api_model": "deepseek-v3",
+      "can_reason": false,
+      "context_window": 128000,
+      "cost_per_1m_in": 0,
+      "cost_per_1m_in_cached": 0,
+      "cost_per_1m_out": 0,
+      "cost_per_1m_out_cached": 0,
+      "default_max_tokens": 8192,
+      "id": "deepseek-v3",
+      "name": "DeepSeek V3",
+      "provider": "aliyun",
+      "supports_attachments": false
+    },
+    "deepseek-v3-2": {
+      "api_model": "deepseek-v3.2",
+      "can_reason": false,
+      "context_window": 128000,
+      "cost_per_1m_in": 0,
+      "cost_per_1m_in_cached": 0,
+      "cost_per_1m_out": 0,
+      "cost_per_1m_out_cached": 0,
+      "default_max_tokens": 8192,
+      "id": "deepseek-v3-2",
+      "name": "DeepSeek V3.2",
+      "provider": "aliyun",
+      "supports_attachments": false
+    },
+    "gpt-4-1": {
+      "api_model": "gpt-4.1",
+      "can_reason": false,
+      "context_window": 128000,
+      "cost_per_1m_in": 0,
+      "cost_per_1m_in_cached": 0,
+      "cost_per_1m_out": 0,
+      "cost_per_1m_out_cached": 0,
+      "default_max_tokens": 4096,
+      "id": "gpt-4-1",
+      "name": "GPT 4.1",
+      "provider": "openai",
+      "supports_attachments": true
+    },
+    "gpt-4o": {
+      "api_model": "gpt-4o",
+      "can_reason": false,
+      "context_window": 128000,
+      "cost_per_1m_in": 0,
+      "cost_per_1m_in_cached": 0,
+      "cost_per_1m_out": 0,
+      "cost_per_1m_out_cached": 0,
+      "default_max_tokens": 4096,
+      "id": "gpt-4o",
+      "name": "GPT-4o",
+      "provider": "openai",
+      "supports_attachments": true
+    },
+    "gpt-4o-mini": {
+      "api_model": "gpt-4o-mini",
+      "can_reason": false,
+      "context_window": 128000,
+      "cost_per_1m_in": 0,
+      "cost_per_1m_in_cached": 0,
+      "cost_per_1m_out": 0,
+      "cost_per_1m_out_cached": 0,
+      "default_max_tokens": 4096,
+      "id": "gpt-4o-mini",
+      "name": "GPT-4o Mini",
+      "provider": "openai",
+      "supports_attachments": true
+    },
+    "kimi-k2": {
+      "api_model": "kimi-k2-thinking",
+      "can_reason": true,
+      "context_window": 156000,
+      "cost_per_1m_in": 0,
+      "cost_per_1m_in_cached": 0,
+      "cost_per_1m_out": 0,
+      "cost_per_1m_out_cached": 0,
+      "default_max_tokens": 8192,
+      "id": "kimi-k2",
+      "name": "Kimi K2",
+      "provider": "aliyun",
+      "supports_attachments": true
+    },
+    "kimi-k2-5": {
+      "api_model": "kimi-k2.5",
+      "can_reason": true,
+      "context_window": 156000,
+      "cost_per_1m_in": 0,
+      "cost_per_1m_in_cached": 0,
+      "cost_per_1m_out": 0,
+      "cost_per_1m_out_cached": 0,
+      "default_max_tokens": 8192,
+      "id": "kimi-k2-5",
+      "name": "Kimi K2.5",
+      "provider": "aliyun",
+      "supports_attachments": true
+    },
+    "minimax-m2-1": {
+      "api_model": "MiniMax-M2.1",
+      "can_reason": false,
+      "context_window": 200000,
+      "cost_per_1m_in": 0,
+      "cost_per_1m_in_cached": 0,
+      "cost_per_1m_out": 0,
+      "cost_per_1m_out_cached": 0,
+      "default_max_tokens": 8192,
+      "id": "minimax-m2-1",
+      "name": "MiniMax M2.1",
+      "provider": "aliyun",
+      "supports_attachments": true
+    },
+    "qwen-audio-turbo": {
+      "api_model": "qwen3-asr-flash",
+      "can_reason": false,
+      "context_window": 128000,
+      "cost_per_1m_in": 0,
+      "cost_per_1m_in_cached": 0,
+      "cost_per_1m_out": 0,
+      "cost_per_1m_out_cached": 0,
+      "default_max_tokens": 2048,
+      "id": "qwen-audio-turbo",
+      "name": "Qwen Audio Turbo",
+      "provider": "aliyun",
+      "supports_attachments": true
+    },
+    "qwen-coder-plus": {
+      "api_model": "qwen3-coder-plus",
+      "can_reason": false,
+      "context_window": 131072,
+      "cost_per_1m_in": 0,
+      "cost_per_1m_in_cached": 0,
+      "cost_per_1m_out": 0,
+      "cost_per_1m_out_cached": 0,
+      "default_max_tokens": 8192,
+      "id": "qwen-coder-plus",
+      "name": "Qwen Coder Plus",
+      "provider": "aliyun",
+      "supports_attachments": true
+    },
+    "qwen-max": {
+      "api_model": "qwen3-max",
+      "can_reason": false,
+      "context_window": 256000,
+      "cost_per_1m_in": 0,
+      "cost_per_1m_in_cached": 0,
+      "cost_per_1m_out": 0,
+      "cost_per_1m_out_cached": 0,
+      "default_max_tokens": 8192,
+      "id": "qwen-max",
+      "name": "Qwen Max",
+      "provider": "aliyun",
+      "supports_attachments": true
+    },
+    "qwen-turbo": {
+      "api_model": "qwen-turbo",
+      "can_reason": false,
+      "context_window": 131072,
+      "cost_per_1m_in": 0,
+      "cost_per_1m_in_cached": 0,
+      "cost_per_1m_out": 0,
+      "cost_per_1m_out_cached": 0,
+      "default_max_tokens": 8192,
+      "id": "qwen-turbo",
+      "name": "Qwen Turbo",
+      "provider": "aliyun",
+      "supports_attachments": true
+    },
+    "qwen-vl-max": {
+      "api_model": "qwen-vl-max",
+      "can_reason": false,
+      "context_window": 32000,
+      "cost_per_1m_in": 0,
+      "cost_per_1m_in_cached": 0,
+      "cost_per_1m_out": 0,
+      "cost_per_1m_out_cached": 0,
+      "default_max_tokens": 8192,
+      "id": "qwen-vl-max",
+      "name": "Qwen3 VL Max",
+      "provider": "aliyun",
+      "supports_attachments": true
+    },
+    "qwen-vl-plus": {
+      "api_model": "qwen-vl-plus",
+      "can_reason": false,
+      "context_window": 32000,
+      "cost_per_1m_in": 0,
+      "cost_per_1m_in_cached": 0,
+      "cost_per_1m_out": 0,
+      "cost_per_1m_out_cached": 0,
+      "default_max_tokens": 8192,
+      "id": "qwen-vl-plus",
+      "name": "Qwen3 VL Plus",
+      "provider": "aliyun",
+      "supports_attachments": true
+    },
+    "qwen3.6-plus": {
+      "api_model": "qwen3.6-plus",
+      "can_reason": false,
+      "context_window": 131072,
+      "cost_per_1m_in": 0,
+      "cost_per_1m_in_cached": 0,
+      "cost_per_1m_out": 0,
+      "cost_per_1m_out_cached": 0,
+      "default_max_tokens": 8192,
+      "id": "qwen3.6-plus",
+      "name": "Qwen 3.6 Plus",
+      "provider": "aliyun",
+      "supports_attachments": true
+    }
+  },
+  "providers": {
+    "aliyun": {
+      "apiKey": "",
+      "disabled": false
+    },
+    "anthropic": {
+      "apiKey": "",
+      "disabled": true
+    },
+    "azure": {
+      "apiKey": "",
+      "disabled": true
+    },
+    "bedrock": {
+      "apiKey": "",
+      "disabled": true
+    },
+    "copilot": {
+      "apiKey": "",
+      "disabled": true
+    },
+    "deepseek": {
+      "apiKey": "",
+      "disabled": false
+    },
+    "gemini": {
+      "apiKey": "",
+      "disabled": true
+    },
+    "groq": {
+      "apiKey": "",
+      "disabled": true
+    },
+    "openai": {
+      "apiKey": "",
+      "disabled": false
+    },
+    "openrouter": {
+      "apiKey": "",
+      "disabled": true
+    },
+    "vertexai": {
+      "apiKey": "",
+      "disabled": true
+    },
+    "xai": {
+      "apiKey": "",
+      "disabled": true
+    }
+  },
+  "security": {},
+  "shell": {},
+  "tui": {
+    "theme": "default"
+  }
+}

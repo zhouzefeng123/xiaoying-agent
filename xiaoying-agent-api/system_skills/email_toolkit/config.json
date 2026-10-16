@@ -1,0 +1,8 @@
+{
+  "user": "",
+  "app_password": "",
+  "smtp_server": "",
+  "smtp_port": 465,
+  "pop_server": "",
+  "pop_port": 995
+}

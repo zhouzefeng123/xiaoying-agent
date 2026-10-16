@@ -1,0 +1,178 @@
+{
+  "name": "xiaoying-client",
+  "private": true,
+  "version": "0.9.135",
+  "description": "XiaoYing Desktop Workspace",
+  "author": "XiaoYing Team",
+  "type": "module",
+  "main": "dist-electron/main.js",
+  "build": {
+    "appId": "com.auramate.app",
+    "productName": "XiaoYing",
+    "publish": [
+      {
+        "provider": "generic",
+        "url": "https://service.chaocetec.cn/vWb6tyyWrDbXbEVA/auramate/"
+      }
+    ],
+    "directories": {
+      "output": "release-v2/${version}",
+      "buildResources": "build"
+    },
+    "files": [
+      "dist",
+      "dist-electron",
+      "public",
+      "node_modules/@lydell/node-pty/**/*",
+      "node_modules/@lydell/node-pty-win32-x64/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "../xiaoying-agent-api/release_bundle/auramate.exe",
+        "to": "auramate-server.exe"
+      },
+      {
+        "from": "../xiaoying-agent-api/release_bundle/system_skills",
+        "to": "system_skills",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": "../xiaoying-agent-api/release_bundle/workspace",
+        "to": "workspace",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": "../xiaoying-agent-api/release_bundle/.auramate.json",
+        "to": ".auramate.defaults.json"
+      },
+      {
+        "from": "../xiaoying-agent-api/release_bundle/.auramate.json",
+        "to": ".auramate.json"
+      },
+      {
+        "from": "../xiaoying-agent-api/release_bundle/sensevoice",
+        "to": "sensevoice",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": "../xiaoying-agent-api/release_bundle/kws",
+        "to": "kws",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": "../xiaoying-agent-api/release_bundle/openvino_embed",
+        "to": "openvino_embed",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": "build/icon.ico",
+        "to": "icon.ico"
+      }
+    ],
+    "win": {
+      "icon": "build/icon.ico",
+      "target": [
+        "nsis"
+      ],
+      "requestedExecutionLevel": "asInvoker",
+      "verifyUpdateCodeSignature": false,
+      "signAndEditExecutable": false
+    },
+    "nsis": {
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
+      "installerHeaderIcon": "build/icon.ico",
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "deleteAppDataOnUninstall": true,
+      "uninstallDisplayName": "XiaoYing"
+    }
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "package": "npm run build && electron-builder --win --dir && node replace_icon.js && node scripts/write-app-update-yml.js && electron-builder --win nsis --prepackaged release-v2/%npm_package_version%/win-unpacked",
+    "lint": "eslint .",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@lydell/node-pty": "^1.2.0-beta.12",
+    "@monaco-editor/react": "^4.7.0",
+    "@tanstack/react-virtual": "^3.13.21",
+    "@types/diff": "^7.0.2",
+    "@types/react-syntax-highlighter": "^15.5.13",
+    "@xterm/addon-fit": "^0.11.0",
+    "@xterm/xterm": "^6.0.0",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "diff": "^8.0.3",
+    "electron-log": "^5.4.3",
+    "electron-updater": "^6.8.3",
+    "force-graph": "^1.51.1",
+    "github-markdown-css": "^5.9.0",
+    "i18next": "^25.8.0",
+    "lucide-react": "^0.563.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "react-force-graph-2d": "^1.29.1",
+    "react-i18next": "^16.5.4",
+    "react-markdown": "^10.1.0",
+    "react-speech-recognition": "^4.0.1",
+    "react-syntax-highlighter": "^16.1.0",
+    "react-virtualized-auto-sizer": "^2.0.2",
+    "react-window": "^2.2.6",
+    "regenerator-runtime": "^0.14.1",
+    "rehype-raw": "^7.0.0",
+    "remark-gfm": "^4.0.1",
+    "sherpa-onnx": "^1.12.37",
+    "sonner": "^2.0.7",
+    "tailwind-merge": "^3.4.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.1",
+    "@testing-library/dom": "^10.4.1",
+    "@testing-library/react": "^16.3.2",
+    "@types/lodash": "^4.17.24",
+    "@types/node": "^24.10.1",
+    "@types/react": "^19.2.5",
+    "@types/react-dom": "^19.2.3",
+    "@types/react-speech-recognition": "^3.9.6",
+    "@types/react-virtualized-auto-sizer": "^1.0.4",
+    "@types/react-window": "^1.8.8",
+    "@vitejs/plugin-react": "^5.1.1",
+    "autoprefixer": "^10.4.23",
+    "electron": "^40.0.0",
+    "electron-builder": "^26.4.0",
+    "eslint": "^9.39.1",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "eslint-plugin-react-refresh": "^0.4.24",
+    "globals": "^16.5.0",
+    "jsdom": "^27.4.0",
+    "monaco-editor": "^0.55.1",
+    "postcss": "^8.5.6",
+    "rcedit": "^3.0.1",
+    "svgo": "^4.0.0",
+    "tailwindcss": "^3.4.17",
+    "ts-node": "^10.9.2",
+    "typescript": "~5.9.3",
+    "typescript-eslint": "^8.46.4",
+    "vite": "npm:rolldown-vite@7.2.5",
+    "vite-plugin-electron": "^0.29.0",
+    "vite-plugin-electron-renderer": "^0.14.6",
+    "vitest": "^4.0.18"
+  },
+  "overrides": {
+    "vite": "npm:rolldown-vite@7.2.5"
+  }
+}

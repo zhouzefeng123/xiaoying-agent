@@ -1,0 +1,755 @@
+openapi: 3.1.0
+info:
+  title: Aura Auth API (A-Side)
+  version: 1.0.0
+  description: |
+    Core business logic and data persistence API for Aura system.
+    Handles user management, group management, and message persistence.
+servers:
+  - url: http://localhost:8080
+    description: Local Development Server
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    # Common
+    SuccessResp:
+      type: object
+      properties:
+        message:
+          type: string
+    ErrorResp:
+      type: object
+      properties:
+        error:
+          type: string
+    
+    # User
+    UserProfile:
+      type: object
+      properties:
+        id:
+          type: string
+        username:
+          type: string
+        nickname:
+          type: string
+        access:
+          type: string
+        mobile:
+          type: string
+        email:
+          type: string
+        last_login_at:
+          type: integer
+        member:
+          $ref: '#/components/schemas/MemberProfile'
+        resource:
+          type: array
+          items:
+            $ref: '#/components/schemas/ResourceItem'
+    
+    MemberProfile:
+      type: object
+      properties:
+        # Add fields based on member.go if needed
+        status:
+          type: string
+    
+    ResourceItem:
+      type: object
+      properties:
+        # Add fields based on resource.go if needed
+        id:
+          type: string
+
+    UpdateUserForm:
+      type: object
+      properties:
+        nickname:
+          type: string
+        access:
+          type: string
+        mobile:
+          type: string
+        email:
+          type: string
+
+    ChangePasswordForm:
+      type: object
+      required:
+        - old
+        - new
+      properties:
+        old:
+          type: string
+        new:
+          type: string
+
+    CurrentUserResp:
+      allOf:
+        - $ref: '#/components/schemas/UserProfile'
+        - type: object
+          properties:
+            member_usable:
+              type: boolean
+
+    # Group Schemas removed as requested
+
+    TempKeyResp:
+      type: object
+      properties:
+        api_key:
+          type: string
+        expire_at:
+          type: integer
+
+    UseTempKeyForm:
+      type: object
+      required:
+        - api_key
+        - input_token
+        - output_token
+      properties:
+        api_key:
+          type: string
+        input_token:
+          type: integer
+        output_token:
+          type: integer
+
+    # Auth & System
+    EmailLoginForm:
+      type: object
+      required:
+        - username
+        - code
+      properties:
+        username:
+          type: string
+        code:
+          type: string
+        machine_code:
+          type: string
+
+    LoginResp:
+      type: object
+      properties:
+        token:
+          type: string
+        prefix:
+          type: string
+
+    SendEmailCodeForm:
+      type: object
+      required:
+        - email
+        - captchaVerifyParam
+      properties:
+        email:
+          type: string
+        captchaVerifyParam:
+          type: string
+          description: "Alibaba Cloud Captcha verify param string"
+
+    SendEmailCodeResp:
+      type: object
+      properties:
+        send_at:
+          type: integer
+        captcha_status:
+          type: boolean
+
+    RegistryByEmailForm:
+      type: object
+      required:
+        - email
+        - code
+        - password
+      properties:
+        email:
+          type: string
+        code:
+          type: string
+        password:
+          type: string
+
+    ValidateUsernameForm:
+      type: object
+      required:
+        - username
+      properties:
+        username:
+          type: string
+
+    PriceConfig:
+      type: object
+      properties:
+        price_monthly:
+          type: number
+        price_quarterly:
+          type: number
+        price_yearly:
+          type: number
+
+    # Member & Charge
+    ChargeForm:
+      type: object
+      properties:
+        remark:
+          type: string
+
+    ChargeResp:
+      type: object
+      properties:
+        url:
+          type: string
+        order_id:
+          type: string
+
+    ChargeStatusForm:
+      type: object
+      required:
+        - order_id
+      properties:
+        order_id:
+          type: string
+
+    ChargeStatusResp:
+      type: object
+      properties:
+        pay_status:
+          type: string
+        charge_status:
+          type: boolean
+        expire_at:
+          type: integer
+
+    CreateContactRecordForm:
+      type: object
+      properties:
+        content:
+          type: string
+        contact:
+          type: string
+
+    ContactRecord:
+      type: object
+      properties:
+        id:
+          type: string
+        content:
+          type: string
+        contact:
+          type: string
+        created_at:
+          type: integer
+
+    # GroupDetailResp removed as requested
+
+    # Event Tracking
+    CreateEventTrackingForm:
+      type: object
+      required:
+        - client_code
+        - event_type
+        - event_name
+      properties:
+        client_code:
+          type: string
+        user_id:
+          type: string
+        event_type:
+          type: string
+        event_name:
+          type: string
+        page_url:
+          type: string
+        referer_url:
+          type: string
+        extra:
+          type: string
+
+    EventTracking:
+      type: object
+      properties:
+        id:
+          type: string
+        created_at:
+          type: integer
+        updated_at:
+          type: integer
+        client_code:
+          type: string
+        user_id:
+          type: string
+        event_type:
+          type: string
+        event_name:
+          type: string
+        page_url:
+          type: string
+        referer_url:
+          type: string
+        ip:
+          type: string
+        ua:
+          type: string
+        os:
+          type: string
+        bot_name:
+          type: string
+        extra:
+          type: string
+
+    # Message
+    Message:
+      type: object
+      properties:
+        id:
+          type: string
+        from:
+          type: string
+        to:
+          type: string
+        content:
+          type: string
+        type:
+          type: integer
+        sender_name:
+          type: string
+        agent_task_kind:
+          type: integer
+          description: "0=NoTask, 1=Order, 2=Report"
+        from_client_code:
+          type: string
+        to_client_code:
+          type: string
+
+    DBPagination:
+      type: object
+      properties:
+        page:
+          type: integer
+        size:
+          type: integer
+        max:
+          type: integer
+
+    MessageListResult:
+      type: object
+      properties:
+        total:
+          type: integer
+        pagination:
+          $ref: '#/components/schemas/DBPagination'
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Message'
+
+    GroupListResult:
+      type: object
+      properties:
+        total:
+          type: integer
+        pagination:
+          $ref: '#/components/schemas/DBPagination'
+        data:
+          type: array
+          items:
+            type: object # Placeholder for Group schema which was removed
+
+security:
+  - bearerAuth: []
+
+paths:
+  # User Routes
+  /user/current:
+    get:
+      summary: Get Current User Profile
+      tags: [User]
+      parameters:
+        - name: machine_code
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CurrentUserResp'
+
+  /user/update/{id}:
+    put:
+      summary: Update User Information
+      tags: [User]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserForm'
+      responses:
+        '200':
+          description: OK
+
+  /user/change-password/{id}:
+    put:
+      summary: Change User Password
+      tags: [User]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangePasswordForm'
+      responses:
+        '200':
+          description: OK
+
+  /user-manage/list:
+    post:
+      summary: List Users (Admin)
+      tags: [User Manage]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              # Simplified for ListQuery
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UserProfile'
+
+  /user-manage/detail/{id}:
+    get:
+      summary: Get User Detail (Admin)
+      tags: [User Manage]
+      parameters:
+        - name: id
+        - in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+
+  # Group Routes removed as requested
+
+  # AI Routes
+  /ai/temp/chat:
+    get:
+      summary: Get Temporary Chat Key
+      tags: [AI]
+      parameters:
+        - name: machine_code
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TempKeyResp'
+
+  /ai/temp/chat/use:
+    post:
+      summary: Report Temporary Key Usage
+      tags: [AI]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UseTempKeyForm'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResp'
+
+  # Auth & System Routes
+  /system/email-login:
+    post:
+      summary: Email Login (Auto Register)
+      tags: [Auth]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmailLoginForm'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResp'
+
+  /system/send-email-code:
+    post:
+      summary: Send Email Verification Code
+      tags: [Auth]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SendEmailCodeForm'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SendEmailCodeResp'
+
+  /system/registry-by-email:
+    post:
+      summary: Register by Email
+      tags: [Auth]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegistryByEmailForm'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: string
+
+  /system/username-unused:
+    get:
+      summary: Check Username Availability
+      tags: [Auth]
+      parameters:
+        - name: username
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK (true = unused, false = used)
+          content:
+            application/json:
+              schema:
+                type: boolean
+
+  /system/contact/create:
+    post:
+      summary: Create Contact Record
+      tags: [System]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateContactRecordForm'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContactRecord'
+
+  /system/member-price/get:
+    get:
+      summary: Get Member Price Config
+      tags: [System]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PriceConfig'
+
+  # Member Charge Routes
+  /member/charge-monthly:
+    post:
+      summary: Charge Monthly Membership
+      tags: [Member]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChargeForm'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChargeResp'
+
+  /member/charge-quarterly:
+    post:
+      summary: Charge Quarterly Membership
+      tags: [Member]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChargeForm'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChargeResp'
+
+  /member/charge-yearly:
+    post:
+      summary: Charge Yearly Membership
+      tags: [Member]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChargeForm'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChargeResp'
+
+  /member/charge-status:
+    get:
+      summary: Query Charge Order Status
+      tags: [Member]
+      parameters:
+        - name: order_id
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChargeStatusResp'
+
+  # Message Routes
+  /message/create:
+    post:
+      summary: Save a message (Persistence)
+      tags: [Message]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Message'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+
+  /message/conversations:
+    get:
+      summary: Get Conversation List
+      tags: [Message]
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+        - name: size
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageListResult'
+
+  /message/history:
+    get:
+      summary: Get History Messages
+      tags: [Message]
+      parameters:
+        - name: target_id
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+        - name: size
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageListResult'
+
+  # Group List Routes removed as requested
+
+  # Event Tracking Routes
+  /event-tracking/create:
+    post:
+      summary: Create Event Tracking
+      tags: [Event Tracking]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateEventTrackingForm'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventTracking'
+

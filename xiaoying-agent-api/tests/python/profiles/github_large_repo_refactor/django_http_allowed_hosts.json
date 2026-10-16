@@ -1,0 +1,35 @@
+{
+  "case_id": "github_large_repo_refactor",
+  "repo_url": "https://github.com/django/django.git",
+  "repo_ref": "bc833e8883db4a333a6485d91637b78c85e2b13b",
+  "task_file": "task.md",
+  "verify_commands": [
+    "python -m py_compile django/utils/http.py tests/utils_tests/test_http.py",
+    "git diff --check"
+  ],
+  "expected_paths": [
+    "django/utils/http.py",
+    "tests/utils_tests/test_http.py"
+  ],
+  "required_content_markers": {
+    "django/utils/http.py": [
+      "def _normalize_allowed_hosts\\(",
+      "allowed_hosts = _normalize_allowed_hosts\\(allowed_hosts\\)"
+    ],
+    "tests/utils_tests/test_http.py": [
+      "def test_allowed_hosts_normalization_inputs\\(",
+      "None",
+      "\"example.com\"",
+      "\\{\"example.com\"\\}"
+    ]
+  },
+  "forbidden_content_markers": {
+    "django/utils/http.py": [
+      "if allowed_hosts is None:\\s*allowed_hosts = \\{\\}"
+    ]
+  },
+  "min_changed_files": 2,
+  "allow_subagents": false,
+  "timeout": 900,
+  "max_total_duration": 1200
+}

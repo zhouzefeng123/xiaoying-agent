@@ -1,0 +1,84 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Default to system preference, but we can set some base variables if needed */
+}
+
+html {
+  background-color: transparent;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  background-color: transparent; 
+  /* Global font size adjustment for Chinese.
+     Restored to the browser default so the desktop UI reads at a comfortable
+     size; the previous 14px (x0.9 for zh-CN) made everything look cramped. */
+  font-size: 16px;
+}
+
+/* Specific adjustment for Chinese characters */
+:lang(zh-CN) {
+  font-size: 1em;
+}
+
+#root {
+    width: 100%;
+    height: 100%;
+}
+
+@keyframes energetic-bounce {
+  0%, 100% {
+    transform: translateY(0) scale(1);
+    filter: brightness(1);
+  }
+  30% {
+    transform: translateY(-16px) scale(1.25); /* Dramatic jump */
+    filter: brightness(1.8) contrast(1.2); /* Flash bright */
+  }
+  50% {
+    transform: translateY(0) scale(0.85); /* Deep squish */
+    filter: brightness(0.9);
+  }
+  70% {
+    transform: translateY(-6px) scale(1.05); /* Rebound */
+    filter: brightness(1.2);
+  }
+}
+
+.animate-energetic-bounce {
+  animation: energetic-bounce 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) infinite; /* Springy physics */
+}
+
+/* Ensure syntax highlighter styles are not overridden */
+pre[class*="language-"] {
+  background: transparent !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
+}
+
+code[class*="language-"] {
+  background: transparent !important;
+  font-family: Menlo, Monaco, Consolas, "Andale Mono", "Ubuntu Mono", "Courier New", monospace !important;
+}
+
+/* Force Aliyun Captcha to be on top of everything */
+#aliyunCaptcha-mask,
+#aliyunCaptcha-window-popup,
+.aliyunCaptcha-window-popup,
+.nc-container {
+    z-index: 99999 !important;
+}
+
+/* Ensure captcha container has dimension if needed */
+#captcha-element {
+    /* If captcha renders inside here, it needs to be visible */
+    z-index: 50; 
+}

@@ -1,0 +1,59 @@
+# ===== 依赖 =====
+node_modules/
+**/node_modules/
+
+# ===== 构建产物（可重新生成）=====
+xiaoying-agent-web/dist/
+xiaoying-agent-web/dist-electron/
+xiaoying-agent-web/release-v2/
+xiaoying-agent-api/dist/
+xiaoying-agent-api/tmp/
+xiaoying-agent-api/.tmp_embed_stub/
+xiaoying-agent-api/auramate-dev.exe
+xiaoying-agent-api/migrate_db.exe
+*.tsbuildinfo
+
+# ===== 本地运行态 / 缓存 / 日志 =====
+.cache/
+**/.cache/
+.tmp-*/
+tmp/
+.backup-*/
+# .run 里只忽略运行日志，脚本（如 start-backend.ps1）保留
+xiaoying-agent-api/.run/*.log
+xiaoying-agent-web/.run/
+xiaoying-agent-api/workspace/
+*.log
+**/tests/**/logs/
+**/tests/**/reports/
+
+# ===== 运行期产物（工具执行时生成）=====
+**/.goword_snapshots/
+**/.auramate/
+**/.auramate.json
+**/.auramate.mcp.json
+**/plan_state.lock
+
+# ===== 本地语音运行时（指向安装版 resources/sensevoice 的目录联接）=====
+xiaoying-agent-api/sensevoice/
+
+# ===== 本地配置与凭据（不要提交）=====
+.env
+**/.env
+xiaoying-agent-api/.auramate.json
+xiaoying-agent-api/.auramate.mcp.json
+xiaoying-agent-api/feishu_config.json
+xiaoying-agent-api/feishu_message_cache.json
+xiaoying-agent-api/session_tools.json
+
+# ===== 本地数据库（含用户会话数据，不提交）=====
+xiaoying-agent-api/database/database.db
+xiaoying-agent-api/database/database.db-shm
+xiaoying-agent-api/database/database.db-wal
+
+# ===== 旧代码归档（体积大，按需保留）=====
+xiaoying-agent-api/legacy-root/
+
+# ===== 系统文件 =====
+.DS_Store
+Thumbs.db
