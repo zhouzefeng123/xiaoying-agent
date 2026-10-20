@@ -47,6 +47,7 @@ type KnowledgeTree struct {
 	CreatedAt      int64           `json:"created_at"`
 	UpdatedAt      int64           `json:"updated_at"`
 	LastAccessedAt sql.NullInt64   `json:"last_accessed_at"`
+	OwnerEmail     string          `json:"owner_email"`
 }
 
 type Memory struct {
@@ -59,6 +60,7 @@ type Memory struct {
 	Embedding      sql.NullString  `json:"embedding"`
 	Confidence     sql.NullFloat64 `json:"confidence"`
 	LastAccessedAt sql.NullInt64   `json:"last_accessed_at"`
+	OwnerEmail     string          `json:"owner_email"`
 }
 
 type Message struct {
@@ -81,6 +83,7 @@ type SavedNews struct {
 	Url         string `json:"url"`
 	PublishedAt int64  `json:"published_at"`
 	CreatedAt   int64  `json:"created_at"`
+	OwnerEmail  string `json:"owner_email"`
 }
 
 type ScheduledTask struct {
@@ -92,6 +95,7 @@ type ScheduledTask struct {
 	NextRunAt          sql.NullInt64  `json:"next_run_at"`
 	IsActive           sql.NullBool   `json:"is_active"`
 	CreatedAt          int64          `json:"created_at"`
+	OwnerEmail         string         `json:"owner_email"`
 }
 
 type Session struct {
@@ -105,4 +109,5 @@ type Session struct {
 	UpdatedAt        int64          `json:"updated_at"`
 	CreatedAt        int64          `json:"created_at"`
 	SummaryMessageID sql.NullString `json:"summary_message_id"`
+	OwnerEmail       string         `json:"owner_email"`
 }

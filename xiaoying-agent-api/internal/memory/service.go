@@ -14,6 +14,7 @@ import (
 	"time"
 	"unicode"
 
+	"github.com/auramate/auramate/internal/config"
 	"github.com/auramate/auramate/internal/db"
 	"github.com/auramate/auramate/internal/llm/embedding"
 	"github.com/auramate/auramate/internal/logging"
@@ -296,6 +297,10 @@ func (s *service) Add(ctx context.Context, category, content, source string) (*d
 	return result.Memory, nil
 }
 
+func memoryOwnedBy(ctx context.Context, ownerEmail string) bool {
+	return strings.EqualFold(strings.TrimSpace(ownerEmail), config.EffectiveOwnerEmail(ctx))
+}
+
 func (s *service) AddWithPolicy(ctx context.Context, req MemoryWriteRequest) (*MemoryWriteResult, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -476,6 +481,7 @@ func (s *service) AddWithPolicy(ctx context.Context, req MemoryWriteRequest) (*M
 		UpdatedAt:      now,
 		Confidence:     sql.NullFloat64{Float64: 1.0, Valid: true},
 		LastAccessedAt: sql.NullInt64{Int64: now, Valid: true},
+		OwnerEmail:     config.EffectiveOwnerEmail(ctx),
 	}
 
 	kt, err := s.q.CreateKnowledgeNode(ctx, params)
@@ -540,6 +546,7 @@ func (s *service) toMemory(kt db.KnowledgeTree) *db.Memory {
 		UpdatedAt:      kt.UpdatedAt,
 		Confidence:     kt.Confidence,
 		LastAccessedAt: kt.LastAccessedAt,
+		OwnerEmail:     kt.OwnerEmail,
 	}
 }
 
@@ -559,6 +566,9 @@ func (s *service) List(ctx context.Context) ([]db.Memory, error) {
 
 	mems := make([]db.Memory, 0)
 	for _, n := range nodes {
+		if !memoryOwnedBy(ctx, n.OwnerEmail) {
+			continue
+		}
 		mems = append(mems, *s.toMemory(n))
 	}
 	return mems, nil
@@ -571,7 +581,7 @@ func (s *service) ListByCategory(ctx context.Context, category string) ([]db.Mem
 		defer s.cacheMu.RUnlock()
 		var filtered []CachedMemory
 		for _, m := range s.cache {
-			if m.Memory.Category == category {
+			if m.Memory.Category == category && memoryOwnedBy(ctx, m.Memory.OwnerEmail) {
 				filtered = append(filtered, m)
 			}
 		}
@@ -711,7 +721,14 @@ func (s *service) Deduplicate(ctx context.Context, threshold float32, dryRun boo
 }
 
 func (s *service) Delete(ctx context.Context, id string) error {
-	err := s.q.DeleteKnowledgeNode(ctx, id)
+	node, err := s.q.GetKnowledgeNode(ctx, id)
+	if err != nil {
+		return err
+	}
+	if !memoryOwnedBy(ctx, node.OwnerEmail) {
+		return sql.ErrNoRows
+	}
+	err = s.q.DeleteKnowledgeNode(ctx, id)
 	if err != nil {
 		return err
 	}
@@ -734,10 +751,20 @@ func (s *service) Get(ctx context.Context, id string) (*db.Memory, error) {
 	if err != nil {
 		return nil, err
 	}
+	if !memoryOwnedBy(ctx, kt.OwnerEmail) {
+		return nil, sql.ErrNoRows
+	}
 	return s.toMemory(kt), nil
 }
 
 func (s *service) Update(ctx context.Context, id, category, content, source string) (*db.Memory, error) {
+	existing, err := s.q.GetKnowledgeNode(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if !memoryOwnedBy(ctx, existing.OwnerEmail) {
+		return nil, sql.ErrNoRows
+	}
 	cleanedContent, ok := SanitizeMemoryContentForStorage(category, content)
 	if !ok || strings.TrimSpace(cleanedContent) == "" {
 		return nil, fmt.Errorf("memory content is empty after sanitization")
@@ -831,6 +858,11 @@ func (s *service) MarkUsed(ctx context.Context, ids []string) error {
 		}
 		seen[id] = struct{}{}
 
+		node, nodeErr := s.q.GetKnowledgeNode(ctx, id)
+		if nodeErr != nil || !memoryOwnedBy(ctx, node.OwnerEmail) {
+			continue
+		}
+
 		if _, err := s.db.ExecContext(ctx, `UPDATE knowledge_tree SET access_count = access_count + 1, last_accessed_at = ? WHERE id = ?`, now, id); err != nil {
 			if firstErr == nil {
 				firstErr = err
@@ -860,6 +892,9 @@ func (s *service) UpdateConfidence(ctx context.Context, id string, delta float64
 	node, err := s.q.GetKnowledgeNode(ctx, id)
 	if err != nil {
 		return err
+	}
+	if !memoryOwnedBy(ctx, node.OwnerEmail) {
+		return sql.ErrNoRows
 	}
 
 	newConf := 1.0
@@ -941,13 +976,15 @@ func (s *service) searchFTS(ctx context.Context, query string, limit int) ([]db.
 	}
 	ftsQuery := strings.Join(cleanTerms, " ")
 
-	q := `SELECT k.id, k.parent_id, k.layer, k.category, k.content, k.summary, k.keywords, k.confidence, k.source, k.embedding, k.access_count, k.created_at, k.updated_at
+	ownerEmail := config.EffectiveOwnerEmail(ctx)
+	q := `SELECT k.id, k.parent_id, k.layer, k.category, k.content, k.summary, k.keywords, k.confidence, k.source, k.embedding, k.access_count, k.created_at, k.updated_at, k.owner_email
 	FROM knowledge_tree k
 	WHERE MATCH(k.content, k.summary, k.keywords) AGAINST (? IN BOOLEAN MODE)
+	  AND k.owner_email = ?
 	ORDER BY MATCH(k.content, k.summary, k.keywords) AGAINST (? IN BOOLEAN MODE) DESC
 	LIMIT ?`
 
-	rows, err := s.db.QueryContext(ctx, q, ftsQuery, ftsQuery, limit)
+	rows, err := s.db.QueryContext(ctx, q, ftsQuery, ownerEmail, ftsQuery, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -970,10 +1007,13 @@ func (s *service) searchFTS(ctx context.Context, query string, limit int) ([]db.
 			&i.AccessCount,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.OwnerEmail,
 		); err != nil {
 			return nil, err
 		}
-		items = append(items, i)
+		if memoryOwnedBy(ctx, i.OwnerEmail) {
+			items = append(items, i)
+		}
 	}
 	if len(items) == 0 {
 		return s.searchLexicalFallback(ctx, query, limit)
@@ -1005,6 +1045,9 @@ func (s *service) searchLexicalFallback(ctx context.Context, query string, limit
 
 	matched := make([]lexicalHit, 0, limit)
 	for _, item := range items {
+		if !memoryOwnedBy(ctx, item.OwnerEmail) {
+			continue
+		}
 		corpus := strings.ToLower(strings.Join([]string{item.Content, item.Summary.String, item.Keywords.String}, " "))
 		hits := lexicalMatchCount(corpus, terms)
 		if hits == 0 {
@@ -1293,6 +1336,9 @@ func (s *service) searchVectorWithPolicy(ctx context.Context, req MemorySearchRe
 	var scored []ScoredMemory
 	now := time.Now().Unix()
 	for _, m := range s.cache {
+		if !memoryOwnedBy(ctx, m.Memory.OwnerEmail) {
+			continue
+		}
 		if req.Category != "" && m.Memory.Category != req.Category {
 			continue
 		}

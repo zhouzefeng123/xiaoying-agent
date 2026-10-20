@@ -5,8 +5,10 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
+	"github.com/auramate/auramate/internal/config"
 	"github.com/auramate/auramate/internal/db"
 )
 
@@ -56,13 +58,20 @@ func (t *manageScheduleTool) Run(ctx context.Context, call ToolCall) (ToolRespon
 			return ToolResponse{}, fmt.Errorf("failed to list tasks: %w", err)
 		}
 
-		if len(tasks) == 0 {
+		ownerEmail := config.EffectiveOwnerEmail(ctx)
+		owned := make([]db.ScheduledTask, 0, len(tasks))
+		for _, task := range tasks {
+			if strings.EqualFold(strings.TrimSpace(task.OwnerEmail), ownerEmail) {
+				owned = append(owned, task)
+			}
+		}
+		if len(owned) == 0 {
 			return NewTextResponse("No active scheduled tasks found."), nil
 		}
 
 		var sb string
 		sb += "Active Scheduled Tasks:\n"
-		for _, task := range tasks {
+		for _, task := range owned {
 			nextRun := "N/A"
 			if task.NextRunAt.Valid {
 				nextRun = time.Unix(task.NextRunAt.Int64, 0).Format(time.RFC3339)
@@ -77,9 +86,11 @@ func (t *manageScheduleTool) Run(ctx context.Context, call ToolCall) (ToolRespon
 			return NewTextErrorResponse("task_id is required for 'cancel' action"), nil
 		}
 
-		// Verify task exists first? Or just delete.
-		// DeleteScheduledTask deletes from DB.
-		err := t.q.DeleteScheduledTask(ctx, params.TaskID)
+		task, err := t.q.GetScheduledTask(ctx, params.TaskID)
+		if err != nil || !strings.EqualFold(strings.TrimSpace(task.OwnerEmail), config.EffectiveOwnerEmail(ctx)) {
+			return NewTextErrorResponse("Task not found"), nil
+		}
+		err = t.q.DeleteScheduledTask(ctx, params.TaskID)
 		if err != nil {
 			return ToolResponse{}, fmt.Errorf("failed to cancel task: %w", err)
 		}

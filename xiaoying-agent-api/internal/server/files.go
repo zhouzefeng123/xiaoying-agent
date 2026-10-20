@@ -3,16 +3,75 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"time"
 
+	"github.com/auramate/auramate/internal/config"
 	"github.com/auramate/auramate/internal/diff"
 	"github.com/auramate/auramate/internal/history"
 	"github.com/auramate/auramate/internal/logging"
 )
+
+func (s *Server) handleWorkspaceFile(w http.ResponseWriter, r *http.Request) {
+	root := config.WorkspaceFromContext(r.Context())
+	if root == "" {
+		http.Error(w, "workspace is not available", http.StatusUnauthorized)
+		return
+	}
+
+	rel := strings.TrimPrefix(r.URL.Path, "/workspace/")
+	clean := path.Clean("/" + rel)
+	if clean == "/" {
+		http.NotFound(w, r)
+		return
+	}
+
+	filePath := filepath.Join(root, filepath.FromSlash(strings.TrimPrefix(clean, "/")))
+	relCheck, err := filepath.Rel(root, filePath)
+	if err != nil || filepath.IsAbs(relCheck) || relCheck == ".." ||
+		strings.HasPrefix(relCheck, ".."+string(filepath.Separator)) {
+		http.Error(w, "invalid workspace path", http.StatusForbidden)
+		return
+	}
+	http.ServeFile(w, r, filePath)
+}
+
+func pathWithinRoot(root, target string) bool {
+	rootAbs, err := filepath.Abs(root)
+	if err != nil {
+		return false
+	}
+	targetAbs, err := filepath.Abs(target)
+	if err != nil {
+		return false
+	}
+	rel, err := filepath.Rel(rootAbs, targetAbs)
+	if err != nil || filepath.IsAbs(rel) {
+		return false
+	}
+	return rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
+}
+
+func safeWorkspacePath(ctx context.Context, raw string) (string, error) {
+	root := config.WorkingDirectoryFor(ctx)
+	if strings.TrimSpace(raw) == "" {
+		return "", fmt.Errorf("path is required")
+	}
+	target := raw
+	if !filepath.IsAbs(target) {
+		target = filepath.Join(root, target)
+	}
+	target = filepath.Clean(target)
+	if !pathWithinRoot(root, target) {
+		return "", fmt.Errorf("path is outside the current workspace")
+	}
+	return target, nil
+}
 
 // Helper to get file content (from history if exists, else from disk)
 // But for "Diff", we want Latest Snapshot vs Disk.
@@ -23,7 +82,7 @@ func (s *Server) GetFileStatus(ctx context.Context) (map[string]string, error) {
 	statusMap := make(map[string]string)
 
 	// Resolve absolute working directory
-	workingDir, err := filepath.Abs(s.app.Config.WorkingDir)
+	workingDir, err := filepath.Abs(config.WorkingDirectoryFor(ctx))
 	if err != nil {
 		return nil, err
 	}
@@ -170,15 +229,15 @@ func (s *Server) GetFileStatus(ctx context.Context) (map[string]string, error) {
 
 func (s *Server) GetFileStatusForPaths(ctx context.Context, paths []string) (map[string]string, error) {
 	statusMap := make(map[string]string)
-	workingDir, err := filepath.Abs(s.app.Config.WorkingDir)
+	workingDir, err := filepath.Abs(config.WorkingDirectoryFor(ctx))
 	if err != nil {
 		return nil, err
 	}
 
 	for _, path := range paths {
-		absPath := path
-		if !filepath.IsAbs(path) {
-			absPath = filepath.Join(workingDir, path)
+		absPath, err := safeWorkspacePath(ctx, path)
+		if err != nil {
+			continue
 		}
 
 		relPath, err := filepath.Rel(workingDir, absPath)
@@ -289,7 +348,7 @@ func (s *Server) handleFiles(w http.ResponseWriter, r *http.Request) {
 			pathParam = "."
 		}
 
-		workingDir, err := filepath.Abs(s.app.Config.WorkingDir)
+		workingDir, err := filepath.Abs(config.WorkingDirectoryFor(ctx))
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -352,7 +411,11 @@ func (s *Server) handleFiles(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "path required", http.StatusBadRequest)
 			return
 		}
-		absPath := filepath.Join(s.app.Config.WorkingDir, path)
+		absPath, err := safeWorkspacePath(ctx, path)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusForbidden)
+			return
+		}
 		versions, err := s.app.History.ListVersionsByPath(ctx, absPath)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -370,14 +433,10 @@ func (s *Server) handleFiles(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		// Resolve absolute path - support both relative and absolute
-		var absPath string
-		if filepath.IsAbs(pathParam) {
-			absPath = filepath.Clean(pathParam)
-		} else {
-			workingDir, _ := filepath.Abs(s.app.Config.WorkingDir)
-			absPath = filepath.Join(workingDir, pathParam)
-			absPath = filepath.Clean(absPath)
+		absPath, err := safeWorkspacePath(ctx, pathParam)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusForbidden)
+			return
 		}
 
 		// 1. Read Disk Content
@@ -422,15 +481,15 @@ func (s *Server) handleFiles(w http.ResponseWriter, r *http.Request) {
 		// Try multiple path strategies to find the file history
 		var versions []history.File
 
-		// Strategy 1: Use path as-is (might be absolute)
-		testPath := req.Path
-		if !filepath.IsAbs(testPath) {
-			testPath = filepath.Join(s.app.Config.WorkingDir, req.Path)
+		// Strategy 1: Resolve within the current user's workspace.
+		testPath, err := safeWorkspacePath(ctx, req.Path)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusForbidden)
+			return
 		}
-		testPath = filepath.Clean(testPath)
 
 		versions, _ = s.app.History.ListVersionsByPath(ctx, testPath)
-		logging.Info("Undo request", "reqPath", req.Path, "testPath", testPath, "workingDir", s.app.Config.WorkingDir, "count", len(versions))
+		logging.Info("Undo request", "reqPath", req.Path, "testPath", testPath, "workingDir", config.WorkingDirectoryFor(ctx), "count", len(versions))
 
 		// Strategy 2: If not found and path is relative, try with forward slashes
 		if len(versions) == 0 {
@@ -507,12 +566,11 @@ func (s *Server) handleFiles(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		// Normalize path
-		absPath := req.Path
-		if !filepath.IsAbs(absPath) {
-			absPath = filepath.Join(s.app.Config.WorkingDir, req.Path)
+		absPath, err := safeWorkspacePath(ctx, req.Path)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusForbidden)
+			return
 		}
-		absPath = filepath.Clean(absPath)
 
 		// Delete all existing versions for this file (reset history)
 		versions, _ := s.app.History.ListVersionsByPath(ctx, absPath)
@@ -546,7 +604,11 @@ func (s *Server) handleFiles(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		absPath := filepath.Join(s.app.Config.WorkingDir, req.Path)
+		absPath, err := safeWorkspacePath(ctx, req.Path)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusForbidden)
+			return
+		}
 		if err := os.MkdirAll(absPath, 0755); err != nil {
 			http.Error(w, "Failed to create directory: "+err.Error(), http.StatusInternalServerError)
 			return
@@ -571,7 +633,11 @@ func (s *Server) handleFiles(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		absPath := filepath.Join(s.app.Config.WorkingDir, req.Path)
+		absPath, err := safeWorkspacePath(ctx, req.Path)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusForbidden)
+			return
+		}
 
 		// Check if exists
 		if _, err := os.Stat(absPath); err == nil {
@@ -603,7 +669,11 @@ func (s *Server) handleFiles(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		absPath := filepath.Join(s.app.Config.WorkingDir, req.Path)
+		absPath, err := safeWorkspacePath(ctx, req.Path)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusForbidden)
+			return
+		}
 		if err := os.RemoveAll(absPath); err != nil {
 			http.Error(w, "Failed to delete: "+err.Error(), http.StatusInternalServerError)
 			return
@@ -629,8 +699,16 @@ func (s *Server) handleFiles(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		absFrom := filepath.Join(s.app.Config.WorkingDir, req.From)
-		absTo := filepath.Join(s.app.Config.WorkingDir, req.To)
+		absFrom, err := safeWorkspacePath(ctx, req.From)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusForbidden)
+			return
+		}
+		absTo, err := safeWorkspacePath(ctx, req.To)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusForbidden)
+			return
+		}
 
 		if err := os.Rename(absFrom, absTo); err != nil {
 			http.Error(w, "Failed to move/rename: "+err.Error(), http.StatusInternalServerError)
@@ -671,7 +749,10 @@ func (s *Server) handleFiles(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 
-			absPath := filepath.Join(s.app.Config.WorkingDir, relPath)
+			absPath, err := safeWorkspacePath(ctx, relPath)
+			if err != nil {
+				continue
+			}
 
 			// Revert to baseline (same logic as single-file undo)
 			versions, _ := s.app.History.ListVersionsByPath(ctx, absPath)
@@ -724,7 +805,10 @@ func (s *Server) handleFiles(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 
-			absPath := filepath.Join(s.app.Config.WorkingDir, relPath)
+			absPath, err := safeWorkspacePath(ctx, relPath)
+			if err != nil {
+				continue
+			}
 
 			// Delete all versions for this file (reset history)
 			versions, _ := s.app.History.ListVersionsByPath(ctx, absPath)
@@ -754,7 +838,11 @@ func (s *Server) handleFiles(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		absPath := filepath.Join(s.app.Config.WorkingDir, req.Path)
+		absPath, err := safeWorkspacePath(ctx, req.Path)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusForbidden)
+			return
+		}
 
 		// Write to disk
 		if err := os.WriteFile(absPath, []byte(req.Content), 0644); err != nil {

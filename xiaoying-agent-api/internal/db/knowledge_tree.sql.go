@@ -139,7 +139,7 @@ func (q *Queries) GetKnowledgeEdges(ctx context.Context, sourceID string) ([]Get
 
 const getKnowledgeNode = `-- name: GetKnowledgeNode :one
 
-SELECT id, parent_id, layer, category, content, summary, keywords, confidence, source, embedding, access_count, created_at, updated_at, last_accessed_at FROM knowledge_tree WHERE id = ? LIMIT 1
+SELECT id, parent_id, layer, category, content, summary, keywords, confidence, source, embedding, access_count, created_at, updated_at, last_accessed_at, owner_email FROM knowledge_tree WHERE id = ? LIMIT 1
 `
 
 // NOTE: CreateKnowledgeNode / UpdateKnowledgeNode are hand written in
@@ -162,6 +162,7 @@ func (q *Queries) GetKnowledgeNode(ctx context.Context, id string) (KnowledgeTre
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.LastAccessedAt,
+			&i.OwnerEmail,
 	)
 	return i, err
 }
@@ -176,7 +177,7 @@ func (q *Queries) IncrementAccessCount(ctx context.Context, id string) error {
 }
 
 const listKnowledgeByLayer = `-- name: ListKnowledgeByLayer :many
-SELECT id, parent_id, layer, category, content, summary, keywords, confidence, source, embedding, access_count, created_at, updated_at, last_accessed_at FROM knowledge_tree
+SELECT id, parent_id, layer, category, content, summary, keywords, confidence, source, embedding, access_count, created_at, updated_at, last_accessed_at, owner_email FROM knowledge_tree
 WHERE layer = ?
 ORDER BY confidence DESC, access_count DESC
 `
@@ -205,6 +206,7 @@ func (q *Queries) ListKnowledgeByLayer(ctx context.Context, layer int64) ([]Know
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.LastAccessedAt,
+			&i.OwnerEmail,
 		); err != nil {
 			return nil, err
 		}
@@ -220,7 +222,7 @@ func (q *Queries) ListKnowledgeByLayer(ctx context.Context, layer int64) ([]Know
 }
 
 const listKnowledgeByParent = `-- name: ListKnowledgeByParent :many
-SELECT id, parent_id, layer, category, content, summary, keywords, confidence, source, embedding, access_count, created_at, updated_at, last_accessed_at FROM knowledge_tree
+SELECT id, parent_id, layer, category, content, summary, keywords, confidence, source, embedding, access_count, created_at, updated_at, last_accessed_at, owner_email FROM knowledge_tree
 WHERE parent_id = ?
 ORDER BY created_at DESC
 `
@@ -249,6 +251,7 @@ func (q *Queries) ListKnowledgeByParent(ctx context.Context, parentID sql.NullSt
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.LastAccessedAt,
+			&i.OwnerEmail,
 		); err != nil {
 			return nil, err
 		}
@@ -264,7 +267,7 @@ func (q *Queries) ListKnowledgeByParent(ctx context.Context, parentID sql.NullSt
 }
 
 const searchKnowledge = `-- name: SearchKnowledge :many
-SELECT id, parent_id, layer, category, content, summary, keywords, confidence, source, embedding, access_count, created_at, updated_at, last_accessed_at FROM knowledge_tree
+SELECT id, parent_id, layer, category, content, summary, keywords, confidence, source, embedding, access_count, created_at, updated_at, last_accessed_at, owner_email FROM knowledge_tree
 WHERE
     (layer = ? OR ? = 0) AND -- If layer param is 0, search all layers
     (content LIKE ? OR keywords LIKE ?)
@@ -309,6 +312,7 @@ func (q *Queries) SearchKnowledge(ctx context.Context, arg SearchKnowledgeParams
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.LastAccessedAt,
+			&i.OwnerEmail,
 		); err != nil {
 			return nil, err
 		}

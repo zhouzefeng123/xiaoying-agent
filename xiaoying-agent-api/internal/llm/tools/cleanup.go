@@ -73,7 +73,7 @@ func (t *cleanupTool) Run(ctx context.Context, call ToolCall) (ToolResponse, err
 		cutoffTime = time.Now().Add(-d)
 	}
 
-	wd := config.WorkingDirectory()
+	wd := config.WorkingDirectoryFor(ctx)
 	deletedCount := 0
 	errors := []string{}
 

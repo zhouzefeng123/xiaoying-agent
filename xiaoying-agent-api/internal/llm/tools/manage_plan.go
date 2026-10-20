@@ -275,7 +275,7 @@ func (t *managePlanTool) Run(ctx context.Context, call ToolCall) (ToolResponse, 
 		return NewTextErrorResponse(fmt.Sprintf("无效的 JSON: %v", err)), nil
 	}
 
-	workspace := config.WorkingDirectory()
+	workspace := config.WorkingDirectoryFor(ctx)
 	baseName := resolvePlanBaseName(ctx, params.FileName)
 
 	jsonFile := filepath.Join(workspace, baseName+".json")
@@ -909,7 +909,10 @@ func LoadActivePlanSnapshotMetadata(sessionID string) (string, bool, error) {
 		return "", false, nil
 	}
 
-	workspace := config.WorkingDirectory()
+	workspace := config.SessionWorkspace(sessionID)
+	if workspace == "" {
+		workspace = config.WorkingDirectory()
+	}
 	plans, err := loadPlanData(
 		filepath.Join(workspace, baseName+".json"),
 		filepath.Join(workspace, baseName+".md"),
@@ -1141,7 +1144,10 @@ func loadActivePlanFile(sessionID string) string {
 	if sessionID == "" {
 		return ""
 	}
-	workspace := config.WorkingDirectory()
+	workspace := config.SessionWorkspace(sessionID)
+	if workspace == "" {
+		workspace = config.WorkingDirectory()
+	}
 	var baseName string
 	err := withPlanStateRegistryLock(workspace, func() error {
 		registry, err := loadActivePlanRegistry(workspace)
@@ -1167,7 +1173,7 @@ func rememberActivePlanFile(ctx context.Context, baseName string) {
 	if sessionID == "" {
 		return
 	}
-	workspace := config.WorkingDirectory()
+	workspace := config.WorkingDirectoryFor(ctx)
 	_ = withPlanStateRegistryLock(workspace, func() error {
 		registry, err := loadActivePlanRegistry(workspace)
 		if err != nil {

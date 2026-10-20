@@ -68,8 +68,8 @@ func (s *Server) handleSendEmailCode(w http.ResponseWriter, r *http.Request) {
 
 	// 1. Parse request parameters
 	var req struct {
-		Email              string      `json:"email"`
-		CaptchaVerifyParam interface{} `json:"captchaVerifyParam"`
+		Email              string          `json:"email"`
+		CaptchaVerifyParam json.RawMessage `json:"captchaVerifyParam"`
 	}
 
 	bodyBytes, err := io.ReadAll(r.Body)
@@ -88,8 +88,12 @@ func (s *Server) handleSendEmailCode(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Check CaptchaVerifyParam type
-	logging.Info("Captcha param type", "type", fmt.Sprintf("%T", req.CaptchaVerifyParam), "value", req.CaptchaVerifyParam)
+	if !captchaParamPresent(req.CaptchaVerifyParam) {
+		s.handleLocalSendEmailCode(w, req.Email)
+		return
+	}
+
+	logging.Info("Forwarding captcha-protected email code request to Aura")
 
 	// 2. Call Aura Auth API
 	apiURL := fmt.Sprintf("%s/system/send-email-code", AuraAPIBaseURL)
@@ -130,6 +134,10 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	bodyBytes = injectMachineCodeIntoJSONBody(bodyBytes)
+
+	if s.handleLocalLogin(w, r, bodyBytes) {
+		return
+	}
 
 	// 2. Call Login API
 	apiURL := fmt.Sprintf("%s/system/email-login", AuraAPIBaseURL)
@@ -196,6 +204,10 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleCurrent(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	if s.handleLocalCurrent(w, r) {
 		return
 	}
 

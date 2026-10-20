@@ -239,7 +239,7 @@ func (t *fetchTool) Run(ctx context.Context, call ToolCall) (ToolResponse, error
 	p := t.permissions.Request(
 		permission.CreatePermissionRequest{
 			SessionID:   sessionID,
-			Path:        config.WorkingDirectory(),
+			Path:        config.WorkingDirectoryFor(ctx),
 			ToolName:    FetchToolName,
 			Action:      "fetch",
 			Description: fmt.Sprintf("Fetch content from URL: %s", params.URL),
@@ -319,7 +319,7 @@ func (t *fetchTool) Run(ctx context.Context, call ToolCall) (ToolResponse, error
 	if params.SavePath != "" {
 		// Validate path (basic check, permissions already handled)
 		if !filepath.IsAbs(params.SavePath) {
-			params.SavePath = filepath.Join(config.WorkingDirectory(), params.SavePath)
+			params.SavePath = filepath.Join(config.WorkingDirectoryFor(ctx), params.SavePath)
 		}
 
 		// Create file

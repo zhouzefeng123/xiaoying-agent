@@ -21,7 +21,7 @@ func (q *Queries) DeleteScheduledTask(ctx context.Context, id string) error {
 
 const getScheduledTask = `-- name: GetScheduledTask :one
 
-SELECT id, task_type, parameters, schedule_expression, last_run_at, next_run_at, is_active, created_at FROM scheduled_tasks
+SELECT id, task_type, parameters, schedule_expression, last_run_at, next_run_at, is_active, created_at, owner_email FROM scheduled_tasks
 WHERE id = ? LIMIT 1
 `
 
@@ -39,12 +39,13 @@ func (q *Queries) GetScheduledTask(ctx context.Context, id string) (ScheduledTas
 		&i.NextRunAt,
 		&i.IsActive,
 		&i.CreatedAt,
+		&i.OwnerEmail,
 	)
 	return i, err
 }
 
 const listActiveScheduledTasks = `-- name: ListActiveScheduledTasks :many
-SELECT id, task_type, parameters, schedule_expression, last_run_at, next_run_at, is_active, created_at FROM scheduled_tasks
+SELECT id, task_type, parameters, schedule_expression, last_run_at, next_run_at, is_active, created_at, owner_email FROM scheduled_tasks
 WHERE is_active = 1
 ORDER BY created_at DESC
 `
@@ -67,6 +68,7 @@ func (q *Queries) ListActiveScheduledTasks(ctx context.Context) ([]ScheduledTask
 			&i.NextRunAt,
 			&i.IsActive,
 			&i.CreatedAt,
+		&i.OwnerEmail,
 		); err != nil {
 			return nil, err
 		}
@@ -82,7 +84,7 @@ func (q *Queries) ListActiveScheduledTasks(ctx context.Context) ([]ScheduledTask
 }
 
 const listScheduledTasks = `-- name: ListScheduledTasks :many
-SELECT id, task_type, parameters, schedule_expression, last_run_at, next_run_at, is_active, created_at FROM scheduled_tasks
+SELECT id, task_type, parameters, schedule_expression, last_run_at, next_run_at, is_active, created_at, owner_email FROM scheduled_tasks
 ORDER BY created_at DESC
 `
 
@@ -104,6 +106,7 @@ func (q *Queries) ListScheduledTasks(ctx context.Context) ([]ScheduledTask, erro
 			&i.NextRunAt,
 			&i.IsActive,
 			&i.CreatedAt,
+		&i.OwnerEmail,
 		); err != nil {
 			return nil, err
 		}

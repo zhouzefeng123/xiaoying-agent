@@ -65,11 +65,11 @@ func (t *repoMapTool) Run(ctx context.Context, call ToolCall) (ToolResponse, err
 
 	searchPath := params.Path
 	if searchPath == "" {
-		searchPath = config.WorkingDirectory()
+		searchPath = config.WorkingDirectoryFor(ctx)
 	}
 
 	if !filepath.IsAbs(searchPath) {
-		searchPath = filepath.Join(config.WorkingDirectory(), searchPath)
+		searchPath = filepath.Join(config.WorkingDirectoryFor(ctx), searchPath)
 	}
 
 	if _, err := os.Stat(searchPath); os.IsNotExist(err) {

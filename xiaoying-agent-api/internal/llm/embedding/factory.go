@@ -5,6 +5,7 @@ import (
 
 	"github.com/auramate/auramate/internal/config"
 	"github.com/auramate/auramate/internal/llm/models"
+	"github.com/auramate/auramate/internal/logging"
 )
 
 const (
@@ -17,5 +18,11 @@ func NewConfiguredEmbedder(cfg *config.Config) (Embedder, error) {
 		return nil, fmt.Errorf("config is nil")
 	}
 
-	return NewLocalCLIEmbedder(FixedEmbeddingModel, "")
+	embedder, err := NewLocalCLIEmbedder(FixedEmbeddingModel, "")
+	if err != nil {
+		logging.Warn("Local OpenVINO embedder unavailable; continuing without vector embeddings", "error", err)
+		return nil, nil
+	}
+
+	return embedder, nil
 }

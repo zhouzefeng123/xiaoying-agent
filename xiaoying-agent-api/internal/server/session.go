@@ -75,6 +75,10 @@ func (s *Server) handleSessionItem(w http.ResponseWriter, r *http.Request) {
 
 	id := parts[0]
 	ctx := r.Context()
+	if _, err := s.app.Sessions.Get(ctx, id); err != nil {
+		http.Error(w, "Session not found", http.StatusNotFound)
+		return
+	}
 
 	// Check for sub-resources
 	if len(parts) > 1 {

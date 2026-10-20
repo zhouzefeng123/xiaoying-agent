@@ -3,6 +3,7 @@ package prompt
 import (
 	"strings"
 
+	"github.com/auramate/auramate/internal/config"
 	"github.com/auramate/auramate/internal/llm/models"
 )
 
@@ -99,6 +100,10 @@ func GetStaticBasePrompt(mode string, provider models.ModelProvider, personaOver
 // GetDynamicInstruction returns the volatile part of the system prompt.
 // This includes Intent-specific instructions, System Snapshot (Time/CWD), and dynamic tool states.
 func GetDynamicInstruction(intent string, mode string, personaOverride string) string {
+	return GetDynamicInstructionForWorkspace(intent, mode, personaOverride, config.WorkingDirectory())
+}
+
+func GetDynamicInstructionForWorkspace(intent string, mode string, personaOverride string, workspace string) string {
 	var sb strings.Builder
 
 	// 0. Persona Override (Dynamic Identity Evolution)
@@ -134,7 +139,7 @@ func GetDynamicInstruction(intent string, mode string, personaOverride string) s
 	// We inject the full environment info here (previously in CoderPrompt).
 	// This ensures the Agent has full context (User, Shell, OS, Location) in the dynamic tail.
 	sb.WriteString("\n\n")
-	sb.WriteString(GetEnvironmentInfo())
+	sb.WriteString(GetEnvironmentInfoForWorkspace(workspace))
 
 	return sb.String()
 }

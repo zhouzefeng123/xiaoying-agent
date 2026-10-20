@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/auramate/auramate/internal/config"
 	"github.com/auramate/auramate/internal/db"
 	"github.com/auramate/auramate/internal/logging"
 	"github.com/auramate/auramate/internal/message"
@@ -190,7 +191,7 @@ func (a *agent) loadMilestoneSummaryMemory(ctx context.Context) (db.Memory, bool
 		return db.Memory{}, false
 	}
 
-	row, err := a.q.GetCognitiveState(ctx, milestoneSummaryStateKey)
+	row, err := a.q.GetCognitiveState(ctx, config.CognitiveStateKey(ctx, milestoneSummaryStateKey))
 	if err != nil {
 		if !errors.Is(err, sql.ErrNoRows) {
 			logging.Warn("Failed to load milestone summary state", "error", err)
@@ -215,7 +216,7 @@ func (a *agent) saveMilestoneSummary(ctx context.Context, summaryText string) er
 	}
 
 	_, err := a.q.SetCognitiveState(ctx, db.SetCognitiveStateParams{
-		Key:       milestoneSummaryStateKey,
+		Key:       config.CognitiveStateKey(ctx, milestoneSummaryStateKey),
 		Value:     sql.NullString{String: summaryText, Valid: true},
 		UpdatedAt: time.Now().UnixMilli(),
 	})

@@ -114,7 +114,7 @@ func (s *Server) handleChatCompletions(w http.ResponseWriter, r *http.Request) {
 
 	if startLSP {
 		// Lazy start only the LSPs that match the language being handled.
-		s.app.StartLSPClientsForLanguages(r.Context(), inferLSPLanguagesFromChatRequest(req, mode, req.Model, config.WorkingDirectory()))
+		s.app.StartLSPClientsForLanguages(r.Context(), inferLSPLanguagesFromChatRequest(req, mode, req.Model, config.WorkingDirectoryFor(r.Context())))
 	}
 
 	if targetAgent == nil {

@@ -221,7 +221,7 @@ func (t *wordReaderTool) Run(ctx context.Context, call ToolCall) (ToolResponse, 
 	if sessionID != "" {
 		session, err = service.Snapshot(sessionID)
 	} else {
-		resolvedPath := ResolvePath(path)
+		resolvedPath := ResolvePathFor(ctx, path)
 		document, openErr := goword.OpenDOCX(resolvedPath)
 		if openErr != nil {
 			return NewTextErrorResponse(fmt.Sprintf("无法打开 Word 文档: %v", openErr)), nil

@@ -106,9 +106,9 @@ func (l *lsTool) Run(ctx context.Context, call ToolCall) (ToolResponse, error) {
 
 	searchPath := params.Path
 	if searchPath == "" {
-		searchPath = config.WorkingDirectory()
+		searchPath = config.WorkingDirectoryFor(ctx)
 	} else {
-		searchPath = ResolvePath(searchPath)
+		searchPath = ResolvePathFor(ctx, searchPath)
 	}
 
 	if _, err := os.Stat(searchPath); os.IsNotExist(err) {

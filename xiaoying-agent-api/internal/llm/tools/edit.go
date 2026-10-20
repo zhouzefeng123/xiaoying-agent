@@ -309,7 +309,7 @@ func (e *editTool) Run(ctx context.Context, call ToolCall) (ToolResponse, error)
 	}
 
 	// Use ResolvePath which handles relative paths, overlapping prefixes, and project root fallback
-	params.FilePath = ResolvePath(params.FilePath)
+	params.FilePath = ResolvePathFor(ctx, params.FilePath)
 
 	var response ToolResponse
 	var err error
@@ -483,7 +483,7 @@ func (e *editTool) createNewFile(ctx context.Context, filePath, content string) 
 		content,
 		filePath,
 	)
-	rootDir := config.WorkingDirectory()
+	rootDir := config.WorkingDirectoryFor(ctx)
 	permissionPath := filepath.Dir(filePath)
 	if strings.HasPrefix(filePath, rootDir) {
 		permissionPath = rootDir
@@ -578,7 +578,7 @@ func (e *editTool) replaceFullContent(ctx context.Context, filePath, newContent 
 
 	diffResult, additions, removals := diff.GenerateDiff(oldStr, newContent, filePath)
 
-	rootDir := config.WorkingDirectory()
+	rootDir := config.WorkingDirectoryFor(ctx)
 	permissionPath := filepath.Dir(filePath)
 	if strings.HasPrefix(filePath, rootDir) {
 		permissionPath = rootDir
@@ -721,7 +721,7 @@ func (e *editTool) deleteContent(ctx context.Context, filePath, oldString string
 		filePath,
 	)
 
-	rootDir := config.WorkingDirectory()
+	rootDir := config.WorkingDirectoryFor(ctx)
 	permissionPath := filepath.Dir(filePath)
 	if strings.HasPrefix(filePath, rootDir) {
 		permissionPath = rootDir
@@ -817,7 +817,7 @@ func writeFileWithRetry(ctx context.Context, filename string, data []byte, perm 
 		// 1. Check for Permission Errors immediately - don't retry, just fallback
 		if os.IsPermission(err) || strings.Contains(err.Error(), "Access is denied") {
 			logging.Warn("Write permission denied, attempting fallback...", "file", filename)
-			fallbackPath, fallbackErr := writeToFallbackLocation(filename, data, perm)
+			fallbackPath, fallbackErr := writeToFallbackLocation(ctx, filename, data, perm)
 			if fallbackErr == nil {
 				// We return a special error that the caller can detect if they want,
 				// or we just log it. But for the tool output to be useful,
@@ -901,8 +901,8 @@ func verifyWriteResult(ctx context.Context, filename string, expected []byte) er
 }
 
 // writeToFallbackLocation attempts to write to a safe temporary location
-func writeToFallbackLocation(originalPath string, data []byte, perm os.FileMode) (string, error) {
-	rootDir := config.WorkingDirectory()
+func writeToFallbackLocation(ctx context.Context, originalPath string, data []byte, perm os.FileMode) (string, error) {
+	rootDir := config.WorkingDirectoryFor(ctx)
 	fallbackDir := filepath.Join(rootDir, "workspace", "tmp")
 
 	if err := os.MkdirAll(fallbackDir, 0o755); err != nil {
@@ -1024,7 +1024,7 @@ func (e *editTool) replaceContent(ctx context.Context, filePath, oldString, newS
 		newContent,
 		filePath,
 	)
-	rootDir := config.WorkingDirectory()
+	rootDir := config.WorkingDirectoryFor(ctx)
 	permissionPath := filepath.Dir(filePath)
 	if strings.HasPrefix(filePath, rootDir) {
 		permissionPath = rootDir

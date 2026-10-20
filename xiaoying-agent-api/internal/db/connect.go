@@ -57,6 +57,11 @@ func Connect() (*sql.DB, error) {
 		return nil, fmt.Errorf("failed to apply migrations: %w", err)
 	}
 
+	if err := ensureLegacySessionOwners(db); err != nil {
+		_ = db.Close()
+		return nil, fmt.Errorf("failed to assign legacy session owners: %w", err)
+	}
+
 	if err := EnsureTriggers(db); err != nil {
 		_ = db.Close()
 		return nil, fmt.Errorf("failed to ensure triggers: %w", err)
@@ -75,6 +80,19 @@ func Connect() (*sql.DB, error) {
 	)
 
 	return db, nil
+}
+
+func ensureLegacySessionOwners(db *sql.DB) error {
+	legacyOwner := config.LegacyOwnerEmail()
+	if legacyOwner == "" {
+		return nil
+	}
+	for _, table := range []string{"sessions", "knowledge_tree", "scheduled_tasks", "saved_news", "memories"} {
+		if _, err := db.Exec("UPDATE "+table+" SET owner_email = ? WHERE owner_email = ''", legacyOwner); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // mysqlDSN builds the DSN for the configured MySQL server. When includeSchema

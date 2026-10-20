@@ -1,0 +1,117 @@
+name: xiaoying
+
+services:
+  mysql:
+    image: ${MYSQL_IMAGE:-mysql:8.0}
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?set MYSQL_ROOT_PASSWORD in deploy/.env}
+      MYSQL_ROOT_HOST: "%"
+      MYSQL_DATABASE: auramate
+      TZ: Asia/Shanghai
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --default-time-zone=+08:00
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "5"
+    networks:
+      - backend
+
+  api:
+    build:
+      context: ../xiaoying-agent-api
+      dockerfile: Dockerfile
+      args:
+        GO_IMAGE: ${GO_IMAGE:-golang:1.25-bookworm}
+        RUNTIME_IMAGE: ${RUNTIME_IMAGE:-debian:bookworm-slim}
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      TZ: Asia/Shanghai
+      AURAMATE_DB_HOST: mysql
+      AURAMATE_DB_PORT: "3306"
+      AURAMATE_DB_USER: root
+      AURAMATE_DB_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      AURAMATE_DB_NAME: auramate
+      AURAMATE_CONFIG_FILE: /app/.auramate.json
+      AURAMATE_WORKSPACE: /app/workspace
+      AURAMATE_LEGACY_OWNER_EMAIL: ${LEGACY_OWNER_EMAIL:-}
+      AURAMATE_SYSTEM_OWNER_EMAIL: ${SYSTEM_OWNER_EMAIL:-system}
+      AURAMATE_COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      AURAMATE_AUTH_ALLOWED_EMAILS: ${AUTH_ALLOWED_EMAILS:-}
+      AURAMATE_SMTP_HOST: ${SMTP_HOST:-}
+      AURAMATE_SMTP_PORT: ${SMTP_PORT:-465}
+      AURAMATE_SMTP_USER: ${SMTP_USER:-}
+      AURAMATE_SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      AURAMATE_SMTP_FROM: ${SMTP_FROM:-}
+      AURAMATE_SMTP_TLS: ${SMTP_TLS:-ssl}
+    volumes:
+      - ./config/.auramate.json:/app/.auramate.json
+      - ./data/workspace:/app/workspace
+      - ./data/database:/app/database
+      - ./data/logs:/app/logs
+    expose:
+      - "3000"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:3000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "5"
+    networks:
+      - backend
+
+  web:
+    build:
+      context: ../xiaoying-agent-web
+      dockerfile: Dockerfile
+      args:
+        NODE_IMAGE: ${NODE_IMAGE:-node:22-bookworm-slim}
+        NGINX_IMAGE: ${NGINX_IMAGE:-nginx:1.27-alpine}
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    environment:
+      BASIC_AUTH_USER: ${BASIC_AUTH_USER:?set BASIC_AUTH_USER in deploy/.env}
+      BASIC_AUTH_PASSWORD: ${BASIC_AUTH_PASSWORD:?set BASIC_AUTH_PASSWORD in deploy/.env}
+    ports:
+      - "${HTTP_PORT:-80}:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "5"
+    networks:
+      - backend
+
+volumes:
+  mysql_data:
+
+networks:
+  backend:
+    driver: bridge

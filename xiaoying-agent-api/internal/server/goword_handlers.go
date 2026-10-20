@@ -50,7 +50,7 @@ func (s *Server) handleGoWordOpen(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !strings.HasPrefix(resolvedPath, "/") && !strings.Contains(resolvedPath, `:\`) {
-		resolvedPath = s.resolveAttachmentPath(resolvedPath)
+		resolvedPath = s.resolveAttachmentPath(r.Context(), resolvedPath)
 	}
 
 	session, err := s.goWord.OpenDocument(resolvedPath)

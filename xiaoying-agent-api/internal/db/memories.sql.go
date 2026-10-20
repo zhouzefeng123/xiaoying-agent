@@ -22,7 +22,7 @@ func (q *Queries) DeleteMemory(ctx context.Context, id string) error {
 
 const getMemory = `-- name: GetMemory :one
 
-SELECT id, category, content, source, created_at, updated_at, embedding, confidence, last_accessed_at FROM memories
+SELECT id, category, content, source, created_at, updated_at, embedding, confidence, last_accessed_at, owner_email FROM memories
 WHERE id = ? LIMIT 1
 `
 
@@ -41,12 +41,13 @@ func (q *Queries) GetMemory(ctx context.Context, id string) (Memory, error) {
 		&i.Embedding,
 		&i.Confidence,
 		&i.LastAccessedAt,
+		&i.OwnerEmail,
 	)
 	return i, err
 }
 
 const listMemories = `-- name: ListMemories :many
-SELECT id, category, content, source, created_at, updated_at, embedding, confidence, last_accessed_at FROM memories
+SELECT id, category, content, source, created_at, updated_at, embedding, confidence, last_accessed_at, owner_email FROM memories
 ORDER BY created_at DESC
 `
 
@@ -69,6 +70,7 @@ func (q *Queries) ListMemories(ctx context.Context) ([]Memory, error) {
 			&i.Embedding,
 			&i.Confidence,
 			&i.LastAccessedAt,
+		&i.OwnerEmail,
 		); err != nil {
 			return nil, err
 		}
@@ -84,7 +86,7 @@ func (q *Queries) ListMemories(ctx context.Context) ([]Memory, error) {
 }
 
 const listMemoriesByCategory = `-- name: ListMemoriesByCategory :many
-SELECT id, category, content, source, created_at, updated_at, embedding, confidence, last_accessed_at FROM memories
+SELECT id, category, content, source, created_at, updated_at, embedding, confidence, last_accessed_at, owner_email FROM memories
 WHERE category = ?
 ORDER BY created_at DESC
 `
@@ -108,6 +110,7 @@ func (q *Queries) ListMemoriesByCategory(ctx context.Context, category string) (
 			&i.Embedding,
 			&i.Confidence,
 			&i.LastAccessedAt,
+		&i.OwnerEmail,
 		); err != nil {
 			return nil, err
 		}

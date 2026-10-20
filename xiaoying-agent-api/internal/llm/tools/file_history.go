@@ -79,13 +79,13 @@ func (t *fileHistoryTool) Run(ctx context.Context, call ToolCall) (ToolResponse,
 	// Handle relative paths
 	filePath := params.FilePath
 	if !filepath.IsAbs(filePath) {
-		filePath = filepath.Join(config.WorkingDirectory(), filePath)
+		filePath = filepath.Join(config.WorkingDirectoryFor(ctx), filePath)
 	}
 
 	switch params.Action {
 	case "list":
 		// List all versions for the file path
-		relPath, err := filepath.Rel(config.WorkingDirectory(), filePath)
+		relPath, err := filepath.Rel(config.WorkingDirectoryFor(ctx), filePath)
 		if err != nil {
 			relPath = filePath
 		}

@@ -150,7 +150,7 @@ func (r *readTool) Run(ctx context.Context, call ToolCall) (ToolResponse, error)
 	var err error
 	useSessionSnapshot := params.SessionID != ""
 	if params.FilePath != "" {
-		filePath = ResolvePath(params.FilePath)
+		filePath = ResolvePathFor(ctx, params.FilePath)
 	}
 
 	if !useSessionSnapshot || filePath != "" {

@@ -40,6 +40,8 @@ xiaoying-agent-api/sensevoice/
 # ===== 本地配置与凭据（不要提交）=====
 .env
 **/.env
+deploy/config/
+deploy/data/
 xiaoying-agent-api/.auramate.json
 xiaoying-agent-api/.auramate.mcp.json
 xiaoying-agent-api/feishu_config.json

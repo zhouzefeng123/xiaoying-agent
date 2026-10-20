@@ -26,8 +26,8 @@ const (
 	updateCognitiveStateSQL = `UPDATE cognitive_state SET value = ?, updated_at = ? WHERE ` + "`key`" + ` = ?`
 
 	createSessionSQL = `INSERT INTO sessions (
-    id, parent_session_id, title, message_count, prompt_tokens, completion_tokens, cost, summary_message_id, updated_at, created_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, NULL, ?, ?)`
+    id, parent_session_id, title, message_count, prompt_tokens, completion_tokens, cost, summary_message_id, updated_at, created_at, owner_email
+) VALUES (?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?)`
 
 	updateSessionSQL = `UPDATE sessions
 SET title = ?, prompt_tokens = ?, completion_tokens = ?, summary_message_id = ?, cost = ?, updated_at = ?
@@ -58,24 +58,24 @@ WHERE source_id = ? AND target_id = ? AND relation = ?`
 ) VALUES (?, ?, ?, ?, ?)`
 
 	createMemorySQL = `INSERT INTO memories (
-    id, category, content, source, embedding, created_at, updated_at
-) VALUES (?, ?, ?, ?, ?, ?, ?)`
+    id, category, content, source, embedding, created_at, updated_at, owner_email
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
 
 	updateMemorySQL = `UPDATE memories
 SET category = ?, content = ?, source = ?, embedding = ?, updated_at = ?
 WHERE id = ?`
 
 	createScheduledTaskSQL = `INSERT INTO scheduled_tasks (
-    id, task_type, parameters, schedule_expression, last_run_at, next_run_at, is_active, created_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+    id, task_type, parameters, schedule_expression, last_run_at, next_run_at, is_active, created_at, owner_email
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
 
 	updateScheduledTaskSQL = `UPDATE scheduled_tasks
 SET task_type = ?, parameters = ?, schedule_expression = ?, last_run_at = ?, next_run_at = ?, is_active = ?
 WHERE id = ?`
 
 	createKnowledgeNodeSQL = `INSERT INTO knowledge_tree (
-    id, parent_id, layer, category, content, summary, keywords, confidence, source, embedding, created_at, updated_at, last_accessed_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    id, parent_id, layer, category, content, summary, keywords, confidence, source, embedding, created_at, updated_at, last_accessed_at, owner_email
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 
 	updateKnowledgeNodeSQL = `UPDATE knowledge_tree
 SET
@@ -104,6 +104,7 @@ type CreateSessionParams struct {
 	PromptTokens     int64          `json:"prompt_tokens"`
 	CompletionTokens int64          `json:"completion_tokens"`
 	Cost             float64        `json:"cost"`
+	OwnerEmail       string         `json:"owner_email"`
 }
 
 // UpdateSessionParams mirrors the previous sqlc generated struct.
@@ -151,6 +152,7 @@ type CreateMemoryParams struct {
 	Embedding sql.NullString `json:"embedding"`
 	CreatedAt int64          `json:"created_at"`
 	UpdatedAt int64          `json:"updated_at"`
+	OwnerEmail string         `json:"owner_email"`
 }
 
 // UpdateMemoryParams mirrors the previous sqlc generated struct.
@@ -173,6 +175,7 @@ type CreateScheduledTaskParams struct {
 	NextRunAt          sql.NullInt64  `json:"next_run_at"`
 	IsActive           sql.NullBool   `json:"is_active"`
 	CreatedAt          int64          `json:"created_at"`
+	OwnerEmail         string         `json:"owner_email"`
 }
 
 // UpdateScheduledTaskParams mirrors the previous sqlc generated struct.
@@ -201,6 +204,7 @@ type CreateKnowledgeNodeParams struct {
 	CreatedAt      int64           `json:"created_at"`
 	UpdatedAt      int64           `json:"updated_at"`
 	LastAccessedAt sql.NullInt64   `json:"last_accessed_at"`
+	OwnerEmail     string          `json:"owner_email"`
 }
 
 // UpdateKnowledgeNodeParams mirrors the previous sqlc generated struct.
@@ -267,6 +271,7 @@ func (q *Queries) CreateSession(ctx context.Context, arg CreateSessionParams) (S
 		arg.Cost,
 		now,
 		now,
+		arg.OwnerEmail,
 	); err != nil {
 		return Session{}, fmt.Errorf("CreateSession: %w", err)
 	}
@@ -378,6 +383,7 @@ func (q *Queries) CreateMemory(ctx context.Context, arg CreateMemoryParams) (Mem
 		arg.Embedding,
 		arg.CreatedAt,
 		arg.UpdatedAt,
+		arg.OwnerEmail,
 	); err != nil {
 		return Memory{}, fmt.Errorf("CreateMemory: %w", err)
 	}
@@ -410,6 +416,7 @@ func (q *Queries) CreateScheduledTask(ctx context.Context, arg CreateScheduledTa
 		arg.NextRunAt,
 		arg.IsActive,
 		arg.CreatedAt,
+		arg.OwnerEmail,
 	); err != nil {
 		return ScheduledTask{}, fmt.Errorf("CreateScheduledTask: %w", err)
 	}
@@ -448,6 +455,7 @@ func (q *Queries) CreateKnowledgeNode(ctx context.Context, arg CreateKnowledgeNo
 		arg.CreatedAt,
 		arg.UpdatedAt,
 		arg.LastAccessedAt,
+		arg.OwnerEmail,
 	); err != nil {
 		return KnowledgeTree{}, fmt.Errorf("CreateKnowledgeNode: %w", err)
 	}

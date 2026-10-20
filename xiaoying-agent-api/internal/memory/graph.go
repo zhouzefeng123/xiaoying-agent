@@ -12,6 +12,18 @@ import (
 // GraphRAG Implementation
 
 func (s *service) Link(ctx context.Context, sourceID, targetID, relation string, weight float64) error {
+	source, err := s.q.GetKnowledgeNode(ctx, sourceID)
+	if err != nil {
+		return err
+	}
+	target, err := s.q.GetKnowledgeNode(ctx, targetID)
+	if err != nil {
+		return err
+	}
+	if !memoryOwnedBy(ctx, source.OwnerEmail) || !memoryOwnedBy(ctx, target.OwnerEmail) {
+		return sql.ErrNoRows
+	}
+
 	now := time.Now().Unix()
 	params := db.CreateKnowledgeEdgeParams{
 		SourceID:  sourceID,
@@ -24,6 +36,9 @@ func (s *service) Link(ctx context.Context, sourceID, targetID, relation string,
 }
 
 func (s *service) GetRelated(ctx context.Context, id string) ([]RelatedMemory, error) {
+	if _, err := s.Get(ctx, id); err != nil {
+		return nil, err
+	}
 	// Get outgoing edges
 	edges, err := s.q.GetKnowledgeEdges(ctx, id)
 	if err != nil {

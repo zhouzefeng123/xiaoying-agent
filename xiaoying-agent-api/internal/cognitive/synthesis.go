@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/auramate/auramate/internal/config"
 	"github.com/auramate/auramate/internal/db"
 	"github.com/auramate/auramate/internal/llm/agent"
 	"github.com/auramate/auramate/internal/logging"
@@ -34,11 +35,19 @@ func (e *Engine) Synthesize(ctx context.Context) error {
 
 	l3Nodes, err := e.q.ListKnowledgeByLayer(ctx, LayerKnowledge)
 	if err == nil {
-		candidates = append(candidates, l3Nodes...)
+		for _, node := range l3Nodes {
+			if knowledgeOwnedBy(ctx, node.OwnerEmail) {
+				candidates = append(candidates, node)
+			}
+		}
 	}
 	l4Nodes, err := e.q.ListKnowledgeByLayer(ctx, LayerEpisodic)
 	if err == nil {
-		candidates = append(candidates, l4Nodes...)
+		for _, node := range l4Nodes {
+			if knowledgeOwnedBy(ctx, node.OwnerEmail) {
+				candidates = append(candidates, node)
+			}
+		}
 	}
 
 	// Filter: Only those without ParentID and created > 1 hour ago (to avoid synthesizing active context)
@@ -94,6 +103,7 @@ func (e *Engine) Synthesize(ctx context.Context) error {
 		synthSessionID := "aura-internal-synthesis"
 		e.q.CreateSession(ctx, db.CreateSessionParams{
 			ID: synthSessionID, Title: "Synthesis",
+			OwnerEmail: config.EffectiveOwnerEmail(ctx),
 		})
 
 		events, err := ag.Run(ctx, synthSessionID, sb.String(), "normal")
@@ -180,6 +190,9 @@ func (e *Engine) Decay(ctx context.Context) error {
 			continue
 		}
 		for _, n := range nodes {
+			if !knowledgeOwnedBy(ctx, n.OwnerEmail) {
+				continue
+			}
 			if n.AccessCount.Valid && n.AccessCount.Int64 == 0 {
 				age := now - n.UpdatedAt
 				if age > 30*24*3600 { // 30 days

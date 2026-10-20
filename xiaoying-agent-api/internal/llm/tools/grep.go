@@ -119,9 +119,9 @@ func (g *grepTool) Run(ctx context.Context, call ToolCall) (ToolResponse, error)
 
 	searchPath := params.Path
 	if searchPath == "" {
-		searchPath = config.WorkingDirectory()
+		searchPath = config.WorkingDirectoryFor(ctx)
 	} else {
-		searchPath = ResolvePath(searchPath)
+		searchPath = ResolvePathFor(ctx, searchPath)
 	}
 
 	// Set a timeout for the search operation

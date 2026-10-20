@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/auramate/auramate/internal/config"
 	"github.com/auramate/auramate/internal/db"
 )
 
@@ -103,7 +104,7 @@ func (tb *TokenBucket) GetStatus(ctx context.Context) (int64, int64, error) {
 
 // Helper methods for cognitive_state table
 func (tb *TokenBucket) getState(ctx context.Context, key string) (string, error) {
-	state, err := tb.q.GetCognitiveState(ctx, key)
+	state, err := tb.q.GetCognitiveState(ctx, config.CognitiveStateKey(ctx, key))
 	if err != nil {
 		if err == sql.ErrNoRows {
 			// Return default or empty?
@@ -126,7 +127,7 @@ func (tb *TokenBucket) getState(ctx context.Context, key string) (string, error)
 
 func (tb *TokenBucket) setState(ctx context.Context, key, value string) error {
 	params := db.SetCognitiveStateParams{
-		Key:       key,
+		Key:       config.CognitiveStateKey(ctx, key),
 		Value:     sql.NullString{String: value, Valid: true},
 		UpdatedAt: time.Now().Unix(),
 	}

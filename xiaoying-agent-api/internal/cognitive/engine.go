@@ -11,6 +11,7 @@ import (
 
 	"time"
 
+	"github.com/auramate/auramate/internal/config"
 	"github.com/auramate/auramate/internal/db"
 	"github.com/auramate/auramate/internal/llm/agent"
 	"github.com/auramate/auramate/internal/llm/provider"
@@ -239,12 +240,17 @@ func (e *Engine) RunProactiveCheck(ctx context.Context) {
 	sessionID := "aura-proactive-internal"
 
 	// Ensure session exists
-	_, err := e.q.GetSessionByID(ctx, sessionID)
+	existingSession, err := e.q.GetSessionByID(ctx, sessionID)
+	if err == nil && !sessionOwnedBy(ctx, existingSession.OwnerEmail) {
+		logging.Warn("Skipping proactive session with mismatched owner", "session_id", sessionID)
+		return
+	}
 	if err != nil {
 		e.q.CreateSession(ctx, db.CreateSessionParams{
 			ID:           sessionID,
 			Title:        "Proactive Internal",
 			MessageCount: 0,
+			OwnerEmail:   config.EffectiveOwnerEmail(ctx),
 		})
 	}
 
@@ -280,6 +286,9 @@ func (e *Engine) RunProactiveCheck(ctx context.Context) {
 		// Filter and sort by UpdatedAt
 		var activeSessions []db.Session
 		for _, s := range sessions {
+			if !sessionOwnedBy(ctx, s.OwnerEmail) {
+				continue
+			}
 			if s.ID != "aura-proactive-internal" && s.ID != "aura-life-exploration" {
 				activeSessions = append(activeSessions, s)
 			}

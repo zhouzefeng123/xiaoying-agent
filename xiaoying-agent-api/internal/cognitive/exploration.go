@@ -7,6 +7,7 @@ import (
 	"math/rand"
 	"time"
 
+	"github.com/auramate/auramate/internal/config"
 	"github.com/auramate/auramate/internal/db"
 	"github.com/auramate/auramate/internal/llm/agent"
 	"github.com/auramate/auramate/internal/logging"
@@ -27,7 +28,10 @@ func (e *Engine) Explore(ctx context.Context) error {
 	}
 
 	// 0. Ensure Session Exists
-	_, err := e.q.GetSessionByID(ctx, ExplorationSessionID)
+	existingSession, err := e.q.GetSessionByID(ctx, ExplorationSessionID)
+	if err == nil && !sessionOwnedBy(ctx, existingSession.OwnerEmail) {
+		return fmt.Errorf("exploration session ownership mismatch")
+	}
 	if err != nil {
 		if err == sql.ErrNoRows {
 			logging.Info("Creating new Exploration Session...", "id", ExplorationSessionID)
@@ -38,6 +42,7 @@ func (e *Engine) Explore(ctx context.Context) error {
 				PromptTokens:     0,
 				CompletionTokens: 0,
 				Cost:             0,
+				OwnerEmail:       config.EffectiveOwnerEmail(ctx),
 			})
 			if err != nil {
 				return fmt.Errorf("failed to create exploration session: %w", err)

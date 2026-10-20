@@ -822,7 +822,7 @@ export function useChat() {
         if (code === 1403) {
             const paymentUrl = new URL('https://www.auramate.cn/payment');
             const authToken = localStorage.getItem('auth_token');
-            if (authToken) {
+            if (authToken && !authToken.startsWith('local_')) {
                 paymentUrl.pathname = '/login';
                 paymentUrl.searchParams.set('token', authToken);
                 paymentUrl.searchParams.set('redirect', '/payment');

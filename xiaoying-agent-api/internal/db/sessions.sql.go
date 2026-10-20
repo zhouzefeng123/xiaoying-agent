@@ -21,7 +21,7 @@ func (q *Queries) DeleteSession(ctx context.Context, id string) error {
 
 const getSessionByID = `-- name: GetSessionByID :one
 
-SELECT id, parent_session_id, title, message_count, prompt_tokens, completion_tokens, cost, updated_at, created_at, summary_message_id
+SELECT id, parent_session_id, title, message_count, prompt_tokens, completion_tokens, cost, updated_at, created_at, summary_message_id, owner_email
 FROM sessions
 WHERE id = ? LIMIT 1
 `
@@ -42,6 +42,7 @@ func (q *Queries) GetSessionByID(ctx context.Context, id string) (Session, error
 		&i.UpdatedAt,
 		&i.CreatedAt,
 		&i.SummaryMessageID,
+		&i.OwnerEmail,
 	)
 	return i, err
 }
@@ -66,7 +67,7 @@ func (q *Queries) GetTokenStats(ctx context.Context) (GetTokenStatsRow, error) {
 }
 
 const listSessions = `-- name: ListSessions :many
-SELECT id, parent_session_id, title, message_count, prompt_tokens, completion_tokens, cost, updated_at, created_at, summary_message_id
+SELECT id, parent_session_id, title, message_count, prompt_tokens, completion_tokens, cost, updated_at, created_at, summary_message_id, owner_email
 FROM sessions
 WHERE parent_session_id is NULL
 ORDER BY created_at DESC
@@ -92,6 +93,7 @@ func (q *Queries) ListSessions(ctx context.Context) ([]Session, error) {
 			&i.UpdatedAt,
 			&i.CreatedAt,
 			&i.SummaryMessageID,
+			&i.OwnerEmail,
 		); err != nil {
 			return nil, err
 		}

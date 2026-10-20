@@ -254,10 +254,17 @@ func fetchLocation() string {
 }
 
 func GetEnvironmentInfo() string {
+	return GetEnvironmentInfoForWorkspace(config.WorkingDirectory())
+}
+
+func GetEnvironmentInfoForWorkspace(workspace string) string {
 	// Strong initial injection: try to refresh env cache before first prompt usage.
 	ensureStrongInitialEnvInjection()
 
-	cwd := config.WorkingDirectory()
+	cwd := workspace
+	if strings.TrimSpace(cwd) == "" {
+		cwd = config.WorkingDirectory()
+	}
 	now := time.Now()
 	zoneName, zoneOffset := now.Zone()
 	offsetHours := zoneOffset / 3600

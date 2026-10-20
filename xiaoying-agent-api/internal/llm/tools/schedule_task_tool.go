@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/auramate/auramate/internal/config"
 	"github.com/auramate/auramate/internal/db"
 	"github.com/google/uuid"
 )
@@ -122,6 +123,7 @@ func (t *scheduleTaskTool) Run(ctx context.Context, call ToolCall) (ToolResponse
 		IsActive:           sql.NullBool{Bool: true, Valid: true},
 		CreatedAt:          now,
 		NextRunAt:          sql.NullInt64{Int64: nextRunTime.Unix(), Valid: true},
+		OwnerEmail:         config.EffectiveOwnerEmail(ctx),
 	}
 
 	_, err := t.q.CreateScheduledTask(ctx, dbParams)

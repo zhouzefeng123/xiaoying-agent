@@ -438,7 +438,7 @@ func TestStageAttachmentsForWorkspace(t *testing.T) {
 		},
 	}
 
-	staged := s.stageAttachmentsForWorkspace("session-1", attachments)
+	staged := s.stageAttachmentsForWorkspace(context.Background(), "session-1", attachments)
 	if len(staged) != 3 {
 		t.Fatalf("expected 3 attachments with directory preserved, got %d", len(staged))
 	}

@@ -185,13 +185,17 @@ func SetImplicitPlanReuse(ctx context.Context, allowed bool) context.Context {
 }
 
 func ResolvePath(path string) string {
+	return ResolvePathFor(context.Background(), path)
+}
+
+func ResolvePathFor(ctx context.Context, path string) string {
 	// 1. Handle Absolute Paths
 	if filepath.IsAbs(path) {
 		return filepath.Clean(path)
 	}
 
 	// 2. Try CWD Resolution
-	cwd := config.WorkingDirectory()
+	cwd := config.WorkingDirectoryFor(ctx)
 	absPath := filepath.Join(cwd, path)
 	if _, err := os.Stat(absPath); err == nil {
 		return absPath
@@ -208,14 +212,16 @@ func ResolvePath(path string) string {
 		}
 	}
 
-	// 4. Try ProjectRoot Fallback
-	if cfg := config.Get(); cfg != nil {
+	// 4. Try ProjectRoot Fallback only for the shared/global workspace.
+	if config.WorkspaceFromContext(ctx) == "" {
+		if cfg := config.Get(); cfg != nil {
 		projectRoot := cfg.ProjectRoot
 		if projectRoot != "" && projectRoot != cwd {
 			altPath := filepath.Join(projectRoot, path)
 			if _, err := os.Stat(altPath); err == nil {
 				return altPath
 			}
+		}
 		}
 	}
 

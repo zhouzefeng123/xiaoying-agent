@@ -4,9 +4,11 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
+	"github.com/auramate/auramate/internal/config"
 	"github.com/auramate/auramate/internal/db"
 	"github.com/auramate/auramate/internal/llm/embedding"
 	"github.com/auramate/auramate/internal/logging"
@@ -23,6 +25,10 @@ import (
 // Notifier defines the interface for sending notifications to the user
 type Notifier interface {
 	Notify(title, content string) error
+}
+
+type UserNotifier interface {
+	NotifyUser(email, title, content string) error
 }
 
 const (
@@ -267,6 +273,15 @@ func (s *Scheduler) executeTask(ctx context.Context, task db.ScheduledTask) {
 
 	logging.Info("Executing scheduled task", "id", task.ID, "type", task.TaskType)
 
+	ownerEmail := strings.TrimSpace(task.OwnerEmail)
+	if ownerEmail == "" {
+		ownerEmail = config.EffectiveOwnerEmail(ctx)
+	}
+	ctx = config.ContextWithUserEmail(ctx, ownerEmail)
+	if workspace, workspaceErr := config.EnsureUserWorkspace(ownerEmail); workspaceErr == nil {
+		ctx = config.ContextWithWorkspace(ctx, workspace)
+	}
+
 	var err error
 	switch task.TaskType {
 	case TaskTypeTestNotification:
@@ -318,31 +333,29 @@ func (s *Scheduler) executeTask(ctx context.Context, task db.ScheduledTask) {
 	}
 }
 
+func (s *Scheduler) notifyTask(task db.ScheduledTask, title, content string) {
+	if s.notifier == nil {
+		return
+	}
+	if userNotifier, ok := s.notifier.(UserNotifier); ok && strings.TrimSpace(task.OwnerEmail) != "" {
+		_ = userNotifier.NotifyUser(task.OwnerEmail, title, content)
+		return
+	}
+	_ = s.notifier.Notify(title, content)
+}
+
 func (s *Scheduler) runTestNotificationTask(ctx context.Context, task db.ScheduledTask) error {
 	logging.Info("Running Test Notification Task...")
-	if s.notifier != nil {
-		s.notifier.Notify("测试通知", "这是一个来自后端的测试消息，用于验证消息中心功能")
-	}
+	s.notifyTask(task, "Test notification", "This is a test notification from the backend.")
 	return nil
 }
 
 func (s *Scheduler) runReminderTask(ctx context.Context, task db.ScheduledTask) error {
 	logging.Info("Running Reminder Task...")
-	// Parse parameters JSON (simple string check for now)
 	content := task.Parameters
 	if content == "" {
-		content = "您有一个新的提醒！"
+		content = "You have a new reminder."
 	}
-
-	if s.notifier != nil {
-		// Use server notifier
-		s.notifier.Notify("提醒", content)
-	}
-
-	// CRITICAL FIX: Also emit an event to the main chat if possible
-	// Since scheduler runs in background, it might not have an active chat session.
-	// We can create a ephemeral session or broadcast a system event.
-	// For now, logging and Notify (which sends to frontend toast/notification) is standard.
-	// But let's verify if 'notifier' is actually hooked up to WebSocket.
+	s.notifyTask(task, "Reminder", content)
 	return nil
 }

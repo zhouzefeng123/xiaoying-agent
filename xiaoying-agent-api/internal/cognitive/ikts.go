@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/auramate/auramate/internal/config"
 	"github.com/auramate/auramate/internal/db"
 	"github.com/auramate/auramate/internal/memory"
 	"github.com/google/uuid"
@@ -46,28 +47,46 @@ func (s *IKTS) AddMemory(ctx context.Context, layer int64, category, content str
 		// Defaults
 		Confidence: sql.NullFloat64{Float64: 1.0, Valid: true},
 		Source:     sql.NullString{String: "user", Valid: true},
+		OwnerEmail: config.EffectiveOwnerEmail(ctx),
 	}
 
 	return s.q.CreateKnowledgeNode(ctx, params)
 }
 
 func (s *IKTS) GetCoreMemories(ctx context.Context) ([]db.KnowledgeTree, error) {
-	return s.q.ListKnowledgeByLayer(ctx, LayerCore)
+	nodes, err := s.q.ListKnowledgeByLayer(ctx, LayerCore)
+	return filterOwnedKnowledge(ctx, nodes), err
 }
 
 func (s *IKTS) GetDomainMemories(ctx context.Context) ([]db.KnowledgeTree, error) {
-	return s.q.ListKnowledgeByLayer(ctx, LayerDomain)
+	nodes, err := s.q.ListKnowledgeByLayer(ctx, LayerDomain)
+	return filterOwnedKnowledge(ctx, nodes), err
 }
 
 func (s *IKTS) GetEpisodicMemories(ctx context.Context) ([]db.KnowledgeTree, error) {
-	return s.q.ListKnowledgeByLayer(ctx, LayerEpisodic)
+	nodes, err := s.q.ListKnowledgeByLayer(ctx, LayerEpisodic)
+	return filterOwnedKnowledge(ctx, nodes), err
 }
 
 func (s *IKTS) DeleteNode(ctx context.Context, id string) error {
+	node, err := s.q.GetKnowledgeNode(ctx, id)
+	if err != nil {
+		return err
+	}
+	if !knowledgeOwnedBy(ctx, node.OwnerEmail) {
+		return sql.ErrNoRows
+	}
 	return s.q.DeleteKnowledgeNode(ctx, id)
 }
 
 func (s *IKTS) UpdateNode(ctx context.Context, id, content, summary string) error {
+	node, err := s.q.GetKnowledgeNode(ctx, id)
+	if err != nil {
+		return err
+	}
+	if !knowledgeOwnedBy(ctx, node.OwnerEmail) {
+		return sql.ErrNoRows
+	}
 	now := time.Now().Unix()
 	params := db.UpdateKnowledgeNodeParams{
 		ID:        id,
@@ -75,8 +94,26 @@ func (s *IKTS) UpdateNode(ctx context.Context, id, content, summary string) erro
 		Summary:   sql.NullString{String: summary, Valid: summary != ""},
 		UpdatedAt: now,
 	}
-	_, err := s.q.UpdateKnowledgeNode(ctx, params)
+	_, err = s.q.UpdateKnowledgeNode(ctx, params)
 	return err
+}
+
+func knowledgeOwnedBy(ctx context.Context, ownerEmail string) bool {
+	return strings.EqualFold(strings.TrimSpace(ownerEmail), config.EffectiveOwnerEmail(ctx))
+}
+
+func sessionOwnedBy(ctx context.Context, ownerEmail string) bool {
+	return strings.EqualFold(strings.TrimSpace(ownerEmail), config.EffectiveOwnerEmail(ctx))
+}
+
+func filterOwnedKnowledge(ctx context.Context, nodes []db.KnowledgeTree) []db.KnowledgeTree {
+	owned := make([]db.KnowledgeTree, 0, len(nodes))
+	for _, node := range nodes {
+		if knowledgeOwnedBy(ctx, node.OwnerEmail) {
+			owned = append(owned, node)
+		}
+	}
+	return owned
 }
 
 func (s *IKTS) Link(ctx context.Context, sourceID, targetID, relation string, weight float64) error {
@@ -102,7 +139,7 @@ func (s *IKTS) RetrieveContext(ctx context.Context, query string) (string, error
 
 	var sb strings.Builder
 	sb.WriteString("=== CORE IDENTITY (L1) ===\n")
-	for _, n := range l1Nodes {
+	for _, n := range filterOwnedKnowledge(ctx, l1Nodes) {
 		sb.WriteString(fmt.Sprintf("- [%s] %s\n", n.Category, n.Content))
 	}
 
@@ -126,16 +163,19 @@ func (s *IKTS) RetrieveContext(ctx context.Context, query string) (string, error
 			sb.WriteString("\n=== RELEVANT KNOWLEDGE (L2/L3) ===\n")
 			graphExpandCount := 0
 			for _, n := range searchResults {
+				if !knowledgeOwnedBy(ctx, n.OwnerEmail) {
+					continue
+				}
 				sb.WriteString(fmt.Sprintf("- [%s] %s (Confidence: %.2f)\n", n.Category, n.Content, n.Confidence.Float64))
 
 				// GraphRAG: Fetch related edges if confidence is high
 				// Performance Optimization: Limit expansion to top 3 most relevant nodes to avoid N+1 query explosion
 				if n.Confidence.Float64 > 0.8 && graphExpandCount < 3 {
-					edges, err := s.q.GetKnowledgeEdges(ctx, n.ID)
-					if err == nil && len(edges) > 0 {
+					related, relatedErr := s.mem.GetRelated(ctx, n.ID)
+					if relatedErr == nil && len(related) > 0 {
 						sb.WriteString("  -> Related:\n")
-						for _, e := range edges {
-							sb.WriteString(fmt.Sprintf("     - [%s] %s (%.2f)\n", e.Relation, e.TargetContent, e.Weight.Float64))
+						for _, e := range related {
+							sb.WriteString(fmt.Sprintf("     - [%s] %s (%.2f)\n", e.Relation, e.Memory.Content, e.Weight))
 						}
 					}
 					graphExpandCount++
@@ -158,6 +198,9 @@ func (s *IKTS) DecayMemories(ctx context.Context) error {
 			return err
 		}
 		for _, n := range nodes {
+			if !knowledgeOwnedBy(ctx, n.OwnerEmail) {
+				continue
+			}
 			if !n.Confidence.Valid {
 				continue
 			}

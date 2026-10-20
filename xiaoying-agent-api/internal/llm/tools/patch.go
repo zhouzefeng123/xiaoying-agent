@@ -78,7 +78,7 @@ func (p *patchTool) Run(ctx context.Context, call ToolCall) (ToolResponse, error
 	// Identify all files needed for the patch and verify they've been read
 	filesToRead := diff.IdentifyFilesNeeded(params.PatchText)
 	for _, filePath := range filesToRead {
-		absPath := ResolvePath(filePath)
+		absPath := ResolvePathFor(ctx, filePath)
 
 		if getLastReadTime(absPath).IsZero() {
 			return NewTextErrorResponse(fmt.Sprintf("you must read the file %s before patching it. Use the FileRead tool first", filePath)), nil
@@ -109,7 +109,7 @@ func (p *patchTool) Run(ctx context.Context, call ToolCall) (ToolResponse, error
 	// Check for new files to ensure they don't already exist
 	filesToAdd := diff.IdentifyFilesAdded(params.PatchText)
 	for _, filePath := range filesToAdd {
-		absPath := ResolvePath(filePath)
+		absPath := ResolvePathFor(ctx, filePath)
 
 		_, err := os.Stat(absPath)
 		if err == nil {
@@ -122,7 +122,7 @@ func (p *patchTool) Run(ctx context.Context, call ToolCall) (ToolResponse, error
 	// Load all required files
 	currentFiles := make(map[string]string)
 	for _, filePath := range filesToRead {
-		absPath := ResolvePath(filePath)
+		absPath := ResolvePathFor(ctx, filePath)
 
 		content, err := os.ReadFile(absPath)
 		if err != nil {
@@ -155,9 +155,9 @@ func (p *patchTool) Run(ctx context.Context, call ToolCall) (ToolResponse, error
 
 	lockPaths := make([]string, 0, len(commit.Changes)*2)
 	for path, change := range commit.Changes {
-		lockPaths = append(lockPaths, ResolvePath(path))
+		lockPaths = append(lockPaths, ResolvePathFor(ctx, path))
 		if change.MovePath != nil {
-			lockPaths = append(lockPaths, ResolvePath(*change.MovePath))
+			lockPaths = append(lockPaths, ResolvePathFor(ctx, *change.MovePath))
 		}
 	}
 
@@ -241,7 +241,7 @@ func (p *patchTool) Run(ctx context.Context, call ToolCall) (ToolResponse, error
 	// Apply the changes to the filesystem while holding stable per-file locks.
 	err = runWithEditFileLocks(ctx, lockPaths, func() error {
 		for _, filePath := range filesToRead {
-			absPath := ResolvePath(filePath)
+			absPath := ResolvePathFor(ctx, filePath)
 			content, readErr := os.ReadFile(absPath)
 			if readErr != nil {
 				if os.IsNotExist(readErr) {
@@ -255,7 +255,7 @@ func (p *patchTool) Run(ctx context.Context, call ToolCall) (ToolResponse, error
 		}
 
 		for _, filePath := range filesToAdd {
-			absPath := ResolvePath(filePath)
+			absPath := ResolvePathFor(ctx, filePath)
 			_, statErr := os.Stat(absPath)
 			if statErr == nil {
 				return newEditUserError("file already exists and cannot be added: %s", absPath)
@@ -266,7 +266,7 @@ func (p *patchTool) Run(ctx context.Context, call ToolCall) (ToolResponse, error
 		}
 
 		return diff.ApplyCommit(commit, func(path string, content string) error {
-			absPath := ResolvePath(path)
+			absPath := ResolvePathFor(ctx, path)
 
 			// Create parent directories if needed
 			dir := filepath.Dir(absPath)
@@ -276,7 +276,7 @@ func (p *patchTool) Run(ctx context.Context, call ToolCall) (ToolResponse, error
 
 			return writeFileWithRetry(ctx, absPath, []byte(content), 0o644)
 		}, func(path string) error {
-			absPath := ResolvePath(path)
+			absPath := ResolvePathFor(ctx, path)
 			if err := os.Remove(absPath); err != nil && !os.IsNotExist(err) {
 				return err
 			}
@@ -296,7 +296,7 @@ func (p *patchTool) Run(ctx context.Context, call ToolCall) (ToolResponse, error
 	totalRemovals := 0
 
 	for path, change := range commit.Changes {
-		absPath := ResolvePath(path)
+		absPath := ResolvePathFor(ctx, path)
 		changedFiles = append(changedFiles, absPath)
 
 		oldContent := ""
@@ -316,7 +316,7 @@ func (p *patchTool) Run(ctx context.Context, call ToolCall) (ToolResponse, error
 
 		// Handle Move specially
 		if change.Type == diff.ActionUpdate && change.MovePath != nil {
-			newAbsPath := ResolvePath(*change.MovePath)
+			newAbsPath := ResolvePathFor(ctx, *change.MovePath)
 			changedFiles = append(changedFiles, newAbsPath)
 
 			// 1. Mark old file as deleted in history

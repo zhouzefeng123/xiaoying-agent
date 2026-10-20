@@ -1,0 +1,7 @@
+.git
+.cache
+dist
+dist-electron
+node_modules
+release-v2
+*.log

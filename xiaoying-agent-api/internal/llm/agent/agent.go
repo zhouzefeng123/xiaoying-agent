@@ -4372,7 +4372,7 @@ func (a *agent) loadTaskState(ctx context.Context, sessionID string) (*sessionTa
 		return nil, nil
 	}
 
-	row, err := a.q.GetCognitiveState(ctx, taskStateKey(sessionID))
+	row, err := a.q.GetCognitiveState(ctx, config.CognitiveStateKey(ctx, taskStateKey(sessionID)))
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
@@ -4431,7 +4431,7 @@ func (a *agent) saveTaskState(ctx context.Context, sessionID string, state *sess
 		return fmt.Errorf("failed to encode task state: %w", err)
 	}
 	_, err = a.q.SetCognitiveState(ctx, db.SetCognitiveStateParams{
-		Key:       taskStateKey(sessionID),
+		Key:       config.CognitiveStateKey(ctx, taskStateKey(sessionID)),
 		Value:     sql.NullString{String: string(payload), Valid: true},
 		UpdatedAt: state.UpdatedAt,
 	})
@@ -4935,8 +4935,8 @@ func appendAssistantFindings(entries []taskFindingLedgerEntry, text string) []ta
 
 var loadActivePlanBaseNameForSession = tools.LoadActivePlanBaseName
 
-func resolveTodoSnapshotPathsForBaseName(baseName string) (string, string) {
-	wd := config.WorkingDirectory()
+func resolveTodoSnapshotPathsForBaseName(workspace, baseName string) (string, string) {
+	wd := workspace
 	baseName = strings.TrimSpace(baseName)
 	if baseName == "" {
 		baseName = "TODO"
@@ -4945,10 +4945,14 @@ func resolveTodoSnapshotPathsForBaseName(baseName string) (string, string) {
 }
 
 func resolveTodoSnapshotBaseName(sessionID string) string {
+	workspace := config.SessionWorkspace(sessionID)
+	if workspace == "" {
+		workspace = config.WorkingDirectory()
+	}
 	if activeBaseName := strings.TrimSpace(loadActivePlanBaseNameForSession(sessionID)); activeBaseName != "" {
 		return activeBaseName
 	}
-	jsonPath, mdPath := resolveTodoSnapshotPathsForBaseName("TODO")
+	jsonPath, mdPath := resolveTodoSnapshotPathsForBaseName(workspace, "TODO")
 	if _, err := os.Stat(jsonPath); err == nil {
 		return "TODO"
 	}
@@ -4972,7 +4976,11 @@ func buildTodoSystemMessageFromState(sessionID string, state *sessionTaskState) 
 		})
 	}
 
-	jsonPath, mdPath := resolveTodoSnapshotPathsForBaseName(baseName)
+	workspace := config.SessionWorkspace(sessionID)
+	if workspace == "" {
+		workspace = config.WorkingDirectory()
+	}
+	jsonPath, mdPath := resolveTodoSnapshotPathsForBaseName(workspace, baseName)
 	summary := summarizeTodoSnapshotForPrompt(jsonPath, mdPath)
 	if summary == "" {
 		return nil

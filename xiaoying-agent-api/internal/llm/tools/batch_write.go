@@ -113,7 +113,7 @@ func (t *batchWriteTool) Run(ctx context.Context, call ToolCall) (ToolResponse, 
 		}
 	}
 
-	workDir := config.WorkingDirectory()
+	workDir := config.WorkingDirectoryFor(ctx)
 	backups := make(map[string][]byte)
 	targetPaths := make(map[string]string) // relative -> absolute
 	orderedRelPaths := make([]string, 0, len(params.Files))

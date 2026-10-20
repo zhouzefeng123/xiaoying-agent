@@ -94,7 +94,7 @@ func (t *downloadFileTool) Run(ctx context.Context, call ToolCall) (ToolResponse
 	// Resolve destination path
 	destPath := params.Destination
 	if !filepath.IsAbs(destPath) {
-		cwd := config.WorkingDirectory()
+		cwd := config.WorkingDirectoryFor(ctx)
 		destPath = filepath.Join(cwd, destPath)
 	}
 

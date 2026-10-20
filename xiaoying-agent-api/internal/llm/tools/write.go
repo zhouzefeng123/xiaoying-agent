@@ -131,7 +131,7 @@ func (w *writeTool) Run(ctx context.Context, call ToolCall) (ToolResponse, error
 
 	filePath := params.FilePath
 	// Use ResolvePath to handle both absolute and relative paths robustly
-	filePath = ResolvePath(filePath)
+	filePath = ResolvePathFor(ctx, filePath)
 
 	fileInfo, err := os.Stat(filePath)
 	if err == nil {
@@ -178,7 +178,7 @@ func (w *writeTool) Run(ctx context.Context, call ToolCall) (ToolResponse, error
 		filePath,
 	)
 
-	rootDir := config.WorkingDirectory()
+	rootDir := config.WorkingDirectoryFor(ctx)
 	permissionPath := filepath.Dir(filePath)
 	if strings.HasPrefix(filePath, rootDir) {
 		permissionPath = rootDir

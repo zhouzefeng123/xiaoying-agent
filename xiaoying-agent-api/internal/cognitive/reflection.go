@@ -11,6 +11,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/auramate/auramate/internal/config"
 	"github.com/auramate/auramate/internal/db"
 	"github.com/auramate/auramate/internal/llm/agent"
 	"github.com/auramate/auramate/internal/logging"
@@ -93,7 +94,7 @@ func buildReflectionCheckpoint(msgs []db.Message) string {
 }
 
 func (e *Engine) getReflectionCheckpoint(ctx context.Context, sessionID string) (string, error) {
-	state, err := e.q.GetCognitiveState(ctx, reflectionCheckpointKey(sessionID))
+	state, err := e.q.GetCognitiveState(ctx, config.CognitiveStateKey(ctx, reflectionCheckpointKey(sessionID)))
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return "", nil
@@ -110,7 +111,7 @@ func (e *Engine) getReflectionCheckpoint(ctx context.Context, sessionID string) 
 
 func (e *Engine) setReflectionCheckpoint(ctx context.Context, sessionID, checkpoint string) error {
 	_, err := e.q.SetCognitiveState(ctx, db.SetCognitiveStateParams{
-		Key:       reflectionCheckpointKey(sessionID),
+		Key:       config.CognitiveStateKey(ctx, reflectionCheckpointKey(sessionID)),
 		Value:     sql.NullString{String: checkpoint, Valid: checkpoint != ""},
 		UpdatedAt: time.Now().Unix(),
 	})
@@ -139,6 +140,9 @@ func (e *Engine) Reflect(ctx context.Context, sessionID string) error {
 		}
 		filtered := make([]db.Session, 0, len(sessions))
 		for _, s := range sessions {
+			if !sessionOwnedBy(ctx, s.OwnerEmail) {
+				continue
+			}
 			if isInternalReflectionSession(s.ID) {
 				continue
 			}
@@ -163,6 +167,10 @@ func (e *Engine) Reflect(ctx context.Context, sessionID string) error {
 	logging.Info("Cognitive Reflection Started", "session_id", sessionID)
 
 	// 1. Retrieve Recent Context (Messages)
+	session, err := e.q.GetSessionByID(ctx, sessionID)
+	if err != nil || !sessionOwnedBy(ctx, session.OwnerEmail) {
+		return fmt.Errorf("session not found")
+	}
 	// Optimize: Limit to last N messages or user messages only to save tokens
 	msgs, err := e.q.ListMessagesBySession(ctx, sessionID)
 	if err != nil {
@@ -258,6 +266,7 @@ NOTE: highlights array should NOT be empty if there was meaningful conversation.
 			PromptTokens:     0,
 			CompletionTokens: 0,
 			Cost:             0,
+			OwnerEmail:       config.EffectiveOwnerEmail(ctx),
 		})
 
 		logging.Info("Reflection: Starting profiling agent", "session_id", profileSessionID)

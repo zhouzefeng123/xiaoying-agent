@@ -130,7 +130,7 @@ func (b *bashTool) Run(ctx context.Context, call ToolCall) (ToolResponse, error)
 		p := b.permissions.Request(
 			permission.CreatePermissionRequest{
 				SessionID:   sessionID,
-				Path:        config.WorkingDirectory(),
+				Path:        config.WorkingDirectoryFor(ctx),
 				ToolName:    BashToolName,
 				Action:      "execute",
 				Description: fmt.Sprintf("Execute command: %s", params.Command),
@@ -156,7 +156,7 @@ func (b *bashTool) Run(ctx context.Context, call ToolCall) (ToolResponse, error)
 		}
 	}
 
-	shell := shell.GetPersistentShell(config.WorkingDirectory())
+	shell := shell.GetPersistentShell(config.WorkingDirectoryFor(ctx))
 	if shell == nil {
 		return ToolResponse{}, fmt.Errorf("failed to start shell: shell instance is nil")
 	}

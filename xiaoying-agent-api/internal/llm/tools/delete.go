@@ -76,7 +76,7 @@ func (d *deleteTool) Run(ctx context.Context, call ToolCall) (ToolResponse, erro
 		return ToolResponse{}, fmt.Errorf("session_id is required")
 	}
 
-	wd := config.WorkingDirectory()
+	wd := config.WorkingDirectoryFor(ctx)
 	var pathsToDelete []string
 
 	// Validate paths

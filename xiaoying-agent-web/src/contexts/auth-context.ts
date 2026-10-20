@@ -21,7 +21,7 @@ export interface AuthContextType {
     login: (username: string, code: string) => Promise<void>;
     logout: () => void;
     refreshUser: () => Promise<void>;
-    sendCode: (email: string, captchaVerifyParam: string) => Promise<void>;
+    sendCode: (email: string) => Promise<void>;
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);

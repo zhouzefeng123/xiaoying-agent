@@ -61,11 +61,13 @@ type Server struct {
 	activeGens map[string]context.CancelFunc
 
 	clients            map[*websocket.Conn]*sync.Mutex
+	clientUsers        map[*websocket.Conn]string
 	clientsMutex       sync.Mutex
 	wordEditorMu       sync.Mutex
 	wordEditorLastEmit map[string]wordEditorEmission
 
 	pendingNotifications []Event
+	pendingUserNotifications map[string][]Event
 
 	watcher *Watcher
 	goWord  *goword.Service
@@ -252,7 +254,7 @@ func (s *Server) setSessionReadOnlyMode(ctx context.Context, sessionID string, e
 	return fmt.Errorf("no agent service available")
 }
 
-func (s *Server) resolveAttachmentPath(filePath string) string {
+func (s *Server) resolveAttachmentPath(ctx context.Context, filePath string) string {
 	if filePath == "" {
 		return ""
 	}
@@ -261,16 +263,16 @@ func (s *Server) resolveAttachmentPath(filePath string) string {
 		return filepath.Clean(filePath)
 	}
 
-	return filepath.Join(s.app.Config.WorkingDir, filePath)
+	return filepath.Join(config.WorkingDirectoryFor(ctx), filePath)
 }
 
-func (s *Server) stageAttachmentsForWorkspace(sessionID string, attachments []message.Attachment) []message.Attachment {
+func (s *Server) stageAttachmentsForWorkspace(ctx context.Context, sessionID string, attachments []message.Attachment) []message.Attachment {
 	if len(attachments) == 0 {
 		return attachments
 	}
 
 	stagedDir := filepath.Join(
-		s.app.Config.WorkingDir,
+		config.WorkingDirectoryFor(ctx),
 		".auramate",
 		"attachments",
 		sanitizeAttachmentName(sessionID),
@@ -279,7 +281,7 @@ func (s *Server) stageAttachmentsForWorkspace(sessionID string, attachments []me
 	batchID := time.Now().UnixNano()
 
 	for idx, attachment := range attachments {
-		resolvedPath := s.resolveAttachmentPath(attachment.FilePath)
+		resolvedPath := s.resolveAttachmentPath(ctx, attachment.FilePath)
 
 		if resolvedPath != "" {
 			info, err := os.Stat(resolvedPath)
@@ -360,6 +362,8 @@ func New(app *app.App, port int) *Server {
 		},
 		activeGens:         make(map[string]context.CancelFunc),
 		clients:            make(map[*websocket.Conn]*sync.Mutex),
+		clientUsers:        make(map[*websocket.Conn]string),
+		pendingUserNotifications: make(map[string][]Event),
 		wordEditorLastEmit: make(map[string]wordEditorEmission),
 		goWord:             app.GoWord,
 		StartTime:          time.Now(),
@@ -452,6 +456,58 @@ func (s *Server) sendOrQueueNotification(title, content, type_ string) {
 // Notify implements the scheduler.Notifier interface
 func (s *Server) Notify(title, content string) error {
 	s.sendOrQueueNotification(title, content, "info")
+	return nil
+}
+
+func (s *Server) sendOrQueueNotificationForUser(email, title, content, type_ string) {
+	normalizedTitle := strings.TrimSpace(title)
+	normalizedContent := strings.TrimSpace(content)
+	if normalizedTitle == "" && normalizedContent == "" {
+		return
+	}
+	if normalizedTitle == "" {
+		normalizedTitle = "通知"
+	}
+	email = strings.ToLower(strings.TrimSpace(email))
+	event := Event{
+		Type: EventTypeNotification,
+		Data: map[string]string{
+			"title":   normalizedTitle,
+			"content": normalizedContent,
+			"type":    type_,
+		},
+	}
+
+	s.clientsMutex.Lock()
+	defer s.clientsMutex.Unlock()
+	sent := 0
+	for conn, writeMutex := range s.clients {
+		if email != "" && !strings.EqualFold(s.clientUsers[conn], email) {
+			continue
+		}
+		writeMutex.Lock()
+		err := conn.WriteJSON(event)
+		writeMutex.Unlock()
+		if err != nil {
+			_ = conn.Close()
+			delete(s.clients, conn)
+			delete(s.clientUsers, conn)
+			continue
+		}
+		sent++
+	}
+	if sent > 0 {
+		return
+	}
+	if email == "" {
+		s.pendingNotifications = append(s.pendingNotifications, event)
+		return
+	}
+	s.pendingUserNotifications[email] = append(s.pendingUserNotifications[email], event)
+}
+
+func (s *Server) NotifyUser(email, title, content string) error {
+	s.sendOrQueueNotificationForUser(email, title, content, "info")
 	return nil
 }
 
@@ -618,6 +674,7 @@ func (s *Server) Start() error {
 	// Aura Auth API
 	mux.HandleFunc("/v1/auth/send-email-code", s.handleSendEmailCode)
 	mux.HandleFunc("/v1/auth/login", s.handleLogin)
+	mux.HandleFunc("/v1/auth/logout", s.handleLocalLogout)
 	mux.HandleFunc("/v1/user/current", s.handleCurrent)
 
 	// Cognitive Engine APIs
@@ -626,12 +683,8 @@ func (s *Server) Start() error {
 	mux.HandleFunc("/v1/cognitive/switch", s.handleCognitiveSwitch)
 	mux.HandleFunc("/v1/settings/persona", s.handleSettingsPersona)
 
-	// Static file serving for workspace (images, etc.)
-	workspaceDir := s.app.Config.WorkingDir
-	if _, err := os.Stat(workspaceDir); os.IsNotExist(err) {
-		os.MkdirAll(workspaceDir, 0755)
-	}
-	mux.Handle("/workspace/", http.StripPrefix("/workspace/", http.FileServer(http.Dir(workspaceDir))))
+	// Static file serving for the current user's workspace (images, etc.)
+	mux.HandleFunc("/workspace/", s.handleWorkspaceFile)
 
 	// Health check
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
@@ -644,7 +697,7 @@ func (s *Server) Start() error {
 	logging.Info("Starting server on " + s.server.Addr)
 
 	// Add CORS middleware
-	handler := s.corsMiddleware(mux)
+	handler := s.corsMiddleware(s.authMiddleware(mux))
 	s.server.Handler = handler
 
 	if err := s.server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
@@ -920,7 +973,7 @@ func (s *Server) handleSettingsPersona(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	key := "agent_persona_life"
+	key := config.CognitiveStateKey(r.Context(), "agent_persona_life")
 
 	if r.Method == "GET" {
 		state, err := s.app.Queries.GetCognitiveState(r.Context(), key)
@@ -988,7 +1041,7 @@ func (s *Server) handleUpload(w http.ResponseWriter, r *http.Request) {
 	defer file.Close()
 
 	// Create workspace/images directory
-	imagesDir := filepath.Join(s.app.Config.WorkingDir, "images")
+	imagesDir := filepath.Join(config.WorkingDirectoryFor(r.Context()), "images")
 	if err := os.MkdirAll(imagesDir, 0755); err != nil {
 		http.Error(w, "Failed to create directory: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -1044,7 +1097,14 @@ func (s *Server) handleNews(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		json.NewEncoder(w).Encode(news)
+		ownerEmail := config.EffectiveOwnerEmail(ctx)
+		owned := make([]db.SavedNews, 0, len(news))
+		for _, item := range news {
+			if strings.EqualFold(strings.TrimSpace(item.OwnerEmail), ownerEmail) {
+				owned = append(owned, item)
+			}
+		}
+		json.NewEncoder(w).Encode(owned)
 		return
 	}
 	http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -1060,7 +1120,14 @@ func (s *Server) handleTasks(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		json.NewEncoder(w).Encode(tasks)
+		ownerEmail := config.EffectiveOwnerEmail(ctx)
+		owned := make([]db.ScheduledTask, 0, len(tasks))
+		for _, task := range tasks {
+			if strings.EqualFold(strings.TrimSpace(task.OwnerEmail), ownerEmail) {
+				owned = append(owned, task)
+			}
+		}
+		json.NewEncoder(w).Encode(owned)
 		return
 	}
 
@@ -1126,6 +1193,7 @@ func (s *Server) handleTasks(w http.ResponseWriter, r *http.Request) {
 			NextRunAt:          sql.NullInt64{Int64: nextRunTime.Unix(), Valid: true},
 			IsActive:           sql.NullBool{Bool: true, Valid: true},
 			CreatedAt:          now,
+			OwnerEmail:         config.EffectiveOwnerEmail(ctx),
 		}
 
 		task, err := s.app.Queries.CreateScheduledTask(ctx, params)
@@ -1152,6 +1220,11 @@ func (s *Server) handleTaskItem(w http.ResponseWriter, r *http.Request) {
 	}
 	id := path
 	ctx := r.Context()
+	task, err := s.app.Queries.GetScheduledTask(ctx, id)
+	if err != nil || !strings.EqualFold(strings.TrimSpace(task.OwnerEmail), config.EffectiveOwnerEmail(ctx)) {
+		http.Error(w, "Task not found", http.StatusNotFound)
+		return
+	}
 
 	if r.Method == "DELETE" {
 		err := s.app.Queries.DeleteScheduledTask(ctx, id)
@@ -1298,14 +1371,18 @@ func (s *Server) handleTokenStats(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "GET" {
 		ctx := r.Context()
 
-		stats, err := s.app.Queries.GetTokenStats(ctx)
+		sessions, err := s.app.Sessions.List(ctx)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
-		input := stats.InputTokens
-		output := stats.OutputTokens
+		var input int64
+		var output int64
+		for _, sess := range sessions {
+			input += sess.PromptTokens
+			output += sess.CompletionTokens
+		}
 		total := input + output
 
 		json.NewEncoder(w).Encode(map[string]int64{
@@ -1369,27 +1446,22 @@ func (s *Server) handleSystemOpen(w http.ResponseWriter, r *http.Request) {
 
 	// Determine the path to open
 	var path string
+	workspace := config.WorkingDirectoryFor(r.Context())
 	if req.Path == "workspace" {
-		// Always resolve the fixed workspace root instead of the mutable current WorkingDir.
-		path = s.resolveFixedWorkspaceRoot()
-		if path == "" {
-			var err error
-			path, err = os.Getwd()
-			if err != nil {
-				http.Error(w, "Failed to determine working directory", http.StatusInternalServerError)
-				return
-			}
-		}
+		path = workspace
 		if err := os.MkdirAll(path, 0o755); err != nil {
 			http.Error(w, fmt.Sprintf("Failed to prepare workspace path: %v", err), http.StatusInternalServerError)
 			return
 		}
 	} else {
-		// Absolute path or relative to CWD
+		// Absolute path or relative to the current user's workspace.
 		path = req.Path
 		if !filepath.IsAbs(path) {
-			cwd, _ := os.Getwd()
-			path = filepath.Join(cwd, path)
+			path = filepath.Join(workspace, path)
+		}
+		if !pathWithinRoot(workspace, path) {
+			http.Error(w, "Path is outside the current workspace", http.StatusForbidden)
+			return
 		}
 	}
 
@@ -1420,9 +1492,10 @@ func (s *Server) handleSystemOpen(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleSystemCwd(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "GET" {
 		w.Header().Set("Content-Type", "application/json")
+		workspace := config.WorkingDirectoryFor(r.Context())
 		json.NewEncoder(w).Encode(map[string]string{
-			"path":           s.app.Config.WorkingDir,
-			"workspace_path": s.resolveFixedWorkspaceRoot(),
+			"path":           workspace,
+			"workspace_path": workspace,
 		})
 		return
 	}
@@ -1441,26 +1514,7 @@ func (s *Server) handleSystemCwd(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if req.Path == "" {
-		http.Error(w, "Path is required", http.StatusBadRequest)
-		return
-	}
-
-	// Update working directory in config
-	s.app.Config.WorkingDir = req.Path
-	logging.Info("Working directory updated via API", "path", req.Path)
-
-	// Update watcher if active
-	if s.watcher != nil {
-		s.watcher.UpdatePath(req.Path)
-	}
-
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{
-		"status":  "success",
-		"path":    req.Path,
-		"message": "Working directory updated",
-	})
+	http.Error(w, "每个用户使用独立的固定工作区，不能切换全局工作目录", http.StatusForbidden)
 }
 
 func (s *Server) handleMemories(w http.ResponseWriter, r *http.Request) {
@@ -1750,6 +1804,7 @@ func (s *Server) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	defer func() {
 		s.clientsMutex.Lock()
 		delete(s.clients, conn)
+		delete(s.clientUsers, conn)
 		s.clientsMutex.Unlock()
 		conn.Close()
 	}()
@@ -1761,8 +1816,10 @@ func (s *Server) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	writeMutex := &sync.Mutex{}
 
 	// Register client
+	userEmail := config.UserEmailFromContext(r.Context())
 	s.clientsMutex.Lock()
 	s.clients[conn] = writeMutex
+	s.clientUsers[conn] = userEmail
 
 	// Flush pending notifications
 	var pending []Event
@@ -1770,6 +1827,10 @@ func (s *Server) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 		pending = make([]Event, len(s.pendingNotifications))
 		copy(pending, s.pendingNotifications)
 		s.pendingNotifications = nil // Clear pending
+	}
+	userPending := s.pendingUserNotifications[userEmail]
+	if len(userPending) > 0 {
+		delete(s.pendingUserNotifications, userEmail)
 	}
 	s.clientsMutex.Unlock()
 
@@ -1785,6 +1846,13 @@ func (s *Server) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 		}
 		writeMutex.Unlock()
 	}
+	for _, p := range userPending {
+		writeMutex.Lock()
+		if err := conn.WriteJSON(p); err != nil {
+			logging.Warn("Failed to send pending user notification", "error", err)
+		}
+		writeMutex.Unlock()
+	}
 
 	logging.Info("New websocket connection established")
 
@@ -1795,7 +1863,7 @@ func (s *Server) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Create a context for this connection
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(r.Context())
 	defer cancel()
 
 	// Subscribe to permission requests
@@ -1948,7 +2016,7 @@ func (s *Server) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 			}
 			s.gensMutex.Unlock()
 
-			msg.Attachments = s.stageAttachmentsForWorkspace(msg.SessionID, msg.Attachments)
+			msg.Attachments = s.stageAttachmentsForWorkspace(ctx, msg.SessionID, msg.Attachments)
 
 			// Resolve attachments content if path is provided but content is empty
 			// This supports the path-only flow where agent reads file by path
@@ -2005,6 +2073,14 @@ func (s *Server) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 				}()
 
 				runCtx = context.WithValue(runCtx, tools.SessionIDContextKey, m.SessionID)
+				if err := s.requireSessionAccess(runCtx, m.SessionID); err != nil {
+					writeJSON(Event{
+						Type:      EventTypeError,
+						Content:   "会话不存在或无权访问",
+						SessionID: m.SessionID,
+					})
+					return
+				}
 
 				// Determine which Agent to use based on Cognitive State
 				var eventChan <-chan agent.AgentEvent
@@ -2059,7 +2135,7 @@ func (s *Server) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 				}
 
 				if shouldStartLSPForClientMessage(m) {
-					s.app.StartLSPClientsForLanguages(runCtx, inferLSPLanguagesFromClientMessage(m, config.WorkingDirectory()))
+					s.app.StartLSPClientsForLanguages(runCtx, inferLSPLanguagesFromClientMessage(m, config.WorkingDirectoryFor(runCtx)))
 				}
 
 				eventChan, err = targetAgentService.Run(runCtx, m.SessionID, m.Content, m.Mode, m.Attachments...)

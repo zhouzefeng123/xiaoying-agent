@@ -2357,7 +2357,7 @@ func (a *agent) retrieveRAGContext(ctx context.Context, sessionID string, conten
 // rebuildDynamicSuffix refreshes the volatile part of the system prompt.
 // This is critical for multi-step turns where tool states (loaded/unloaded) might change.
 func (a *agent) rebuildDynamicSuffix(ctx context.Context, content string, mode string, intent string, personaOverride string, state *sessionTaskState) string {
-	dynamicSuffix := prompt.GetDynamicInstruction(intent, mode, personaOverride)
+	dynamicSuffix := prompt.GetDynamicInstructionForWorkspace(intent, mode, personaOverride, config.WorkingDirectoryFor(ctx))
 	diagnosticContinuation := isDiagnosticModeActive(state)
 	sessionID, _ := tools.GetContextValues(ctx)
 	allowPlanBootstrap := shouldAllowComplexContinuationPlanBootstrap(sessionID, state)
@@ -2469,7 +2469,7 @@ func (a *agent) buildSystemMessage(ctx context.Context, content string, mode str
 	// Retrieve Persona Override (if any)
 	personaOverride := ""
 	if mode == "autonomous" && a.q != nil {
-		state, err := a.q.GetCognitiveState(ctx, "agent_persona_life")
+		state, err := a.q.GetCognitiveState(ctx, config.CognitiveStateKey(ctx, "agent_persona_life"))
 		if err == nil && state.Value.Valid {
 			personaOverride = state.Value.String
 		}

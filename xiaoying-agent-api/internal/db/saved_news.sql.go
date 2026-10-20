@@ -10,7 +10,7 @@ import (
 )
 
 const listSavedNews = `-- name: ListSavedNews :many
-SELECT id, title, summary, category, url, published_at, created_at FROM saved_news
+SELECT id, title, summary, category, url, published_at, created_at, owner_email FROM saved_news
 ORDER BY created_at DESC
 LIMIT ?
 `
@@ -32,6 +32,7 @@ func (q *Queries) ListSavedNews(ctx context.Context, limit int32) ([]SavedNews, 
 			&i.Url,
 			&i.PublishedAt,
 			&i.CreatedAt,
+		&i.OwnerEmail,
 		); err != nil {
 			return nil, err
 		}

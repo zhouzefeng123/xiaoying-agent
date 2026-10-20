@@ -223,12 +223,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
     }, [invalidateAuthState, refreshUser]);
 
-    const sendCode: AuthContextType['sendCode'] = useCallback(async (email, captchaVerifyParam) => {
+    const sendCode: AuthContextType['sendCode'] = useCallback(async (email) => {
         try {
             const res = await fetch('/v1/auth/send-email-code', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, captchaVerifyParam })
+                body: JSON.stringify({ email })
             });
             
             const data = await res.json();
@@ -268,6 +268,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }, []);
 
     const logout: AuthContextType['logout'] = useCallback(() => {
+        void fetch('/v1/auth/logout', { method: 'POST' }).catch(() => {});
         clearAuthState();
     }, [clearAuthState]);
 

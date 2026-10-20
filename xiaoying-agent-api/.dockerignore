@@ -1,0 +1,17 @@
+.git
+.github
+.cache
+.run
+*.exe
+*.log
+.env
+.auramate.json
+.auramate.mcp.json
+database
+dist
+feishu_config.json
+feishu_message_cache.json
+release_bundle
+sensevoice
+tmp
+workspace

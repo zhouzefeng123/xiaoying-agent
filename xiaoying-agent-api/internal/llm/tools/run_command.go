@@ -559,7 +559,7 @@ func (t *runCommandTool) Run(ctx context.Context, call ToolCall) (ToolResponse, 
 	}
 
 	sessionID, _ := GetContextValues(ctx)
-	defaultCwd := config.WorkingDirectory()
+	defaultCwd := config.WorkingDirectoryFor(ctx)
 
 	// Resolve CWD
 	var currentCwd string
@@ -688,7 +688,7 @@ func (t *runCommandTool) Run(ctx context.Context, call ToolCall) (ToolResponse, 
 
 	var preparedPython *preparedWindowsInlinePythonCommand
 	if runtime.GOOS == "windows" {
-		prepared, err := prepareWindowsInlinePythonCommand(params.Command, currentCwd)
+		prepared, err := prepareWindowsInlinePythonCommand(ctx, params.Command, currentCwd)
 		if err != nil {
 			return NewTextErrorResponse(fmt.Sprintf("Failed to prepare inline python command: %v", err)), nil
 		}
@@ -901,7 +901,7 @@ func (t *runCommandTool) Run(ctx context.Context, call ToolCall) (ToolResponse, 
 	streamCallback, hasStreamCallback := ctx.Value(StreamOutputContextKey).(StreamOutputCallback)
 
 	// Create temp file for logs (Unified approach for ALL blocking commands)
-	logDir := filepath.Join(config.WorkingDirectory(), ".auramate", "logs")
+	logDir := filepath.Join(config.WorkingDirectoryFor(ctx), ".auramate", "logs")
 	if err := os.MkdirAll(logDir, 0755); err != nil {
 		logDir = os.TempDir()
 	}
@@ -1097,7 +1097,7 @@ func (t *runCommandTool) Run(ctx context.Context, call ToolCall) (ToolResponse, 
 			preview = preview[:500] + "..."
 		}
 		displayPath := logPath
-		if rel, err := filepath.Rel(config.WorkingDirectory(), logPath); err == nil {
+		if rel, err := filepath.Rel(config.WorkingDirectoryFor(ctx), logPath); err == nil {
 			displayPath = rel
 		}
 		summary := fmt.Sprintf("Success. Output size: %d chars.", limitBuf.TotalWritten)
@@ -1246,7 +1246,7 @@ func streamOutput(pipe io.Reader, bgCmd *BackgroundCommand, isStderr bool) {
 	}
 }
 
-func prepareWindowsInlinePythonCommand(command string, currentCwd string) (*preparedWindowsInlinePythonCommand, error) {
+func prepareWindowsInlinePythonCommand(ctx context.Context, command string, currentCwd string) (*preparedWindowsInlinePythonCommand, error) {
 	if runtime.GOOS != "windows" {
 		return nil, nil
 	}
@@ -1283,7 +1283,7 @@ func prepareWindowsInlinePythonCommand(command string, currentCwd string) (*prep
 		return nil, nil
 	}
 
-	scriptPath, cleanup, err := createInlinePythonScript(code, currentCwd)
+	scriptPath, cleanup, err := createInlinePythonScript(ctx, code, currentCwd)
 	if err != nil {
 		return nil, err
 	}
@@ -1475,8 +1475,8 @@ func looksLikePythonExecutable(executable string) bool {
 	}
 }
 
-func createInlinePythonScript(code string, currentCwd string) (string, func(), error) {
-	tempDir := filepath.Join(config.WorkingDirectory(), ".auramate", "tmp")
+func createInlinePythonScript(ctx context.Context, code string, currentCwd string) (string, func(), error) {
+	tempDir := filepath.Join(config.WorkingDirectoryFor(ctx), ".auramate", "tmp")
 	if err := os.MkdirAll(tempDir, 0755); err != nil {
 		tempDir = os.TempDir()
 	}

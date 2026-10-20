@@ -148,9 +148,7 @@ System Instruction:
 				title = "任务: " + string(runes[:length]) + "..."
 			}
 
-			if s.notifier != nil {
-				s.notifier.Notify(title, result)
-			}
+			s.notifyTask(task, title, result)
 		}
 	}
 

@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"strings"
 
+	"github.com/auramate/auramate/internal/config"
 	"github.com/auramate/auramate/internal/db"
 	"github.com/auramate/auramate/internal/pubsub"
 	"github.com/google/uuid"
@@ -21,6 +22,7 @@ type Session struct {
 	Cost             float64
 	CreatedAt        int64
 	UpdatedAt        int64
+	OwnerEmail       string
 }
 
 type Service interface {
@@ -39,28 +41,40 @@ type service struct {
 }
 
 func (s *service) Create(ctx context.Context, title string) (Session, error) {
+	ownerEmail := config.UserEmailFromContext(ctx)
+	if ownerEmail == "" {
+		ownerEmail = config.LegacyOwnerEmail()
+	}
 	dbSession, err := s.q.CreateSession(ctx, db.CreateSessionParams{
-		ID:    uuid.New().String(),
-		Title: title,
+		ID:         uuid.New().String(),
+		Title:      title,
+		OwnerEmail: ownerEmail,
 	})
 	if err != nil {
 		return Session{}, err
 	}
 	session := s.fromDBItem(dbSession)
+	registerSessionWorkspace(session)
 	s.Publish(pubsub.CreatedEvent, session)
 	return session, nil
 }
 
 func (s *service) CreateTaskSession(ctx context.Context, toolCallID, parentSessionID, title string) (Session, error) {
+	parent, err := s.Get(ctx, parentSessionID)
+	if err != nil {
+		return Session{}, err
+	}
 	dbSession, err := s.q.CreateSession(ctx, db.CreateSessionParams{
 		ID:              toolCallID,
 		ParentSessionID: sql.NullString{String: parentSessionID, Valid: true},
 		Title:           title,
+		OwnerEmail:      parent.OwnerEmail,
 	})
 	if err != nil {
 		return Session{}, err
 	}
 	session := s.fromDBItem(dbSession)
+	registerSessionWorkspace(session)
 	s.Publish(pubsub.CreatedEvent, session)
 	return session, nil
 }
@@ -83,10 +97,18 @@ func (s *service) Get(ctx context.Context, id string) (Session, error) {
 	if err != nil {
 		return Session{}, err
 	}
-	return s.fromDBItem(dbSession), nil
+	if !canAccessSession(ctx, dbSession.OwnerEmail) {
+		return Session{}, sql.ErrNoRows
+	}
+	session := s.fromDBItem(dbSession)
+	registerSessionWorkspace(session)
+	return session, nil
 }
 
 func (s *service) Save(ctx context.Context, session Session) (Session, error) {
+	if _, err := s.Get(ctx, session.ID); err != nil {
+		return Session{}, err
+	}
 	dbSession, err := s.q.UpdateSession(ctx, db.UpdateSessionParams{
 		ID:               session.ID,
 		Title:            session.Title,
@@ -113,7 +135,11 @@ func (s *service) List(ctx context.Context) ([]Session, error) {
 	}
 	sessions := make([]Session, 0, len(dbSessions))
 	for _, dbSession := range dbSessions {
+		if !canAccessSession(ctx, dbSession.OwnerEmail) {
+			continue
+		}
 		session := s.fromDBItem(dbSession)
+		registerSessionWorkspace(session)
 		// Older builds leaked worker sessions into top-level history. Hide those synthetic entries.
 		if shouldHideFromHistory(session) {
 			continue
@@ -140,7 +166,27 @@ func (s service) fromDBItem(item db.Session) Session {
 		Cost:             item.Cost,
 		CreatedAt:        item.CreatedAt,
 		UpdatedAt:        item.UpdatedAt,
+		OwnerEmail:       item.OwnerEmail,
 	}
+}
+
+func canAccessSession(ctx context.Context, ownerEmail string) bool {
+	userEmail := config.UserEmailFromContext(ctx)
+	if userEmail == "" {
+		return true
+	}
+	return strings.EqualFold(strings.TrimSpace(ownerEmail), userEmail)
+}
+
+func registerSessionWorkspace(item Session) {
+	if strings.TrimSpace(item.ID) == "" {
+		return
+	}
+	workspace := config.UserWorkspace(item.OwnerEmail)
+	if workspace == "" {
+		workspace = config.WorkingDirectory()
+	}
+	config.RegisterSessionWorkspace(item.ID, workspace)
 }
 
 func NewService(q db.Querier) Service {
