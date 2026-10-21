@@ -103,6 +103,7 @@
     "dev": "vite",
     "dev:web": "vite --config vite.web.config.ts",
     "build": "tsc -b && vite build",
+    "generate:login-lottie": "node scripts/generate-login-lottie.mjs",
     "package": "npm run build && electron-builder --win --dir && node replace_icon.js && node scripts/write-app-update-yml.js && electron-builder --win nsis --prepackaged release-v2/%npm_package_version%/win-unpacked",
     "lint": "eslint .",
     "preview": "vite preview"
@@ -113,6 +114,7 @@
     "@tanstack/react-virtual": "^3.13.21",
     "@types/diff": "^7.0.2",
     "@types/react-syntax-highlighter": "^15.5.13",
+    "@types/three": "^0.186.0",
     "@xterm/addon-fit": "^0.11.0",
     "@xterm/xterm": "^6.0.0",
     "class-variance-authority": "^0.7.1",
@@ -123,6 +125,7 @@
     "force-graph": "^1.51.1",
     "github-markdown-css": "^5.9.0",
     "i18next": "^25.8.0",
+    "lottie-web": "^5.13.0",
     "lucide-react": "^0.563.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
@@ -138,7 +141,8 @@
     "remark-gfm": "^4.0.1",
     "sherpa-onnx": "^1.12.37",
     "sonner": "^2.0.7",
-    "tailwind-merge": "^3.4.0"
+    "tailwind-merge": "^3.4.0",
+    "three": "^0.186.1"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
