@@ -1,0 +1,77 @@
+.login-characters { display: block; width: 100%; overflow: visible; }
+.login-character {
+    transform-box: fill-box;
+    transform-origin: center bottom;
+}
+.login-character-breathe {
+    transform-box: fill-box;
+    transform-origin: center bottom;
+    animation: login-character-breathe 5s ease-in-out infinite;
+}
+.login-character--black { --blink-delay: -2.6s; --breath-delay: -1.8s; }
+.login-character--orange { --blink-delay: -1.2s; --breath-delay: -3.1s; }
+.login-character--yellow { --blink-delay: -3.8s; --breath-delay: -0.9s; }
+.login-character .login-character-breathe { animation-delay: var(--breath-delay, 0s); }
+.login-character-entrance {
+    transform-box: fill-box;
+    transform-origin: center bottom;
+    animation: login-character-arrive 1050ms cubic-bezier(0.2, 0.85, 0.25, 1) both;
+    animation-delay: var(--arrival-delay, 0s);
+}
+.login-character--purple { --arrival-delay: 0ms; --entry-x: -54px; --entry-y: -190px; }
+.login-character--black { --arrival-delay: 170ms; --entry-x: 65px; --entry-y: -230px; }
+.login-character--orange { --arrival-delay: 340ms; --entry-x: -150px; --entry-y: 120px; }
+.login-character--yellow { --arrival-delay: 510ms; --entry-x: 135px; --entry-y: 125px; }
+.login-character [data-body] { transition: d 650ms cubic-bezier(0.22, 1, 0.36, 1); }
+.login-character-turn {
+    transform-box: fill-box;
+    transform-origin: center bottom;
+    transform: scaleX(var(--body-width, 1));
+    transition: transform 650ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.login-character--orange { --face-x: 32px; }
+.login-character--yellow .login-character-smile { transition: d 650ms cubic-bezier(0.22, 1, 0.36, 1); }
+.login-character--yellow .login-character-pupil {
+    transition: cx 650ms cubic-bezier(0.22, 1, 0.36, 1), transform 150ms ease-out;
+}
+.login-character-face {
+    transform: translate(calc(var(--face-x, 0px) + var(--head-offset, 0px)), calc(var(--face-y, 0px) + var(--head-rise, 0px)));
+    transition: transform 650ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.login-character-eyes {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: login-character-blink 5.4s infinite;
+    animation-delay: var(--blink-delay, 0s);
+}
+.login-character-pupil {
+    transform: translate(var(--pupil-x, 0px), var(--pupil-y, 0px));
+    transition: transform 150ms ease-out;
+}
+.login-character-smile { fill: none; stroke-width: 4; stroke-linecap: round; }
+.login-characters--loading .login-character-breathe { animation: login-character-hop 900ms ease-in-out infinite; animation-delay: var(--breath-delay, 0s); }
+@keyframes login-character-breathe {
+    0%, 100% { transform: scaleY(1); }
+    50% { transform: scaleY(1.018); }
+}
+@keyframes login-character-blink {
+    0%, 43%, 47%, 100% { transform: scaleY(1); }
+    45% { transform: scaleY(0.08); }
+}
+@keyframes login-character-hop {
+    0%, 100% { transform: translateY(0); }
+    45% { transform: translateY(-9px); }
+}
+@keyframes login-character-arrive {
+    0% { opacity: 0; transform: translate(var(--entry-x), var(--entry-y)) scale(0.48); }
+    36% { opacity: 1; transform: translate(calc(var(--entry-x) * 0.25), -38px) scale(0.94, 1.06); }
+    53% { transform: translate(calc(var(--entry-x) * 0.1), 0) scale(1.09, 0.9); }
+    72% { transform: translate(0, -24px) scale(0.97, 1.03); }
+    86% { transform: translate(0, 0) scale(1.035, 0.965); }
+    94% { transform: translate(0, -4px) scale(1); }
+    100% { opacity: 1; transform: translate(0, 0) scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+    .login-characters *, .login-characters--loading .login-character-breathe { animation: none; transition: none; }
+    .login-character-entrance { animation: none; }
+}

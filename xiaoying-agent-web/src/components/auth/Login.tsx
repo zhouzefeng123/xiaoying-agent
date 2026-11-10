@@ -3,7 +3,7 @@ import { useAuth } from '../../contexts/useAuth';
 import { toast } from 'sonner';
 import { ArrowRight, Check, KeyRound, Loader2, Mail, X } from 'lucide-react';
 import { Logo } from '../common/Logo';
-import { Robot3D } from './Robot3D';
+import { AnimatedCharacters } from './AnimatedCharacters';
 import './Login.css';
 
 const resolveErrorMessage = (error: unknown, fallback: string) => (
@@ -18,6 +18,7 @@ export const Login: React.FC = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [countdown, setCountdown] = useState(0);
     const [isSendingCode, setIsSendingCode] = useState(false);
+    const [focusedField, setFocusedField] = useState<'email' | 'code' | null>(null);
 
     useEffect(() => {
         if (countdown <= 0) return;
@@ -87,7 +88,7 @@ export const Login: React.FC = () => {
             )}
 
             <div className="login-page-grid">
-                <section className="login-visual-panel" aria-label="小英机器人">
+                <section className="login-visual-panel" aria-label="小英互动伙伴">
                     <div className="login-brand">
                         <span className="login-brand-mark">
                             <Logo />
@@ -100,23 +101,21 @@ export const Login: React.FC = () => {
 
                     <div className="login-visual-copy">
                         <p className="login-eyebrow">YOUR EVERYDAY AI PARTNER</p>
-                        <h1>你好，<span>我是小英！</span></h1>
+                        <h1>小英智能体</h1>
                         <p>把注意力留给真正重要的事，复杂的部分交给我。</p>
                     </div>
 
-                    <div className="login-robot-stage">
-                        <Robot3D />
-                        <div className="login-robot-status">奶蛙模式 · 在线</div>
-                        <div className="login-robot-note">
-                            <strong>今天想完成什么？</strong>
-                            我已经准备好了，随时可以开始。
-                        </div>
+                    <div className="login-characters-stage">
+                        <AnimatedCharacters focusedField={focusedField} isLoading={isLoading} />
+                        <p className="login-character-caption" aria-live="polite">
+                            <span aria-hidden="true" />
+                            {isLoading ? '准备出发，一起开始吧。' : focusedField === 'code' ? '你放心输入，我们先转过头。' : focusedField === 'email' ? '嗨，很高兴认识你。' : '你的工作伙伴，已经就位。'}
+                        </p>
                     </div>
 
                     <div className="login-visual-footer" aria-hidden="true">
-                        <span>FOCUS</span>
-                        <span>CREATE</span>
-                        <span>SHIP</span>
+                        <span>一点灵感，无限可能。</span>
+                        <span>XIAOYING · MAKE IT HAPPEN</span>
                     </div>
                 </section>
 
@@ -141,6 +140,8 @@ export const Login: React.FC = () => {
                                         onChange={e => setEmail(e.target.value)}
                                         className="login-input"
                                         autoComplete="email"
+                                        onFocus={() => setFocusedField('email')}
+                                        onBlur={() => setFocusedField(null)}
                                     />
                                 </div>
                             </div>
@@ -160,6 +161,8 @@ export const Login: React.FC = () => {
                                             onChange={e => setCode(e.target.value)}
                                             className="login-input"
                                             autoComplete="one-time-code"
+                                            onFocus={() => setFocusedField('code')}
+                                            onBlur={() => setFocusedField(null)}
                                         />
                                     </div>
                                     <button
@@ -167,6 +170,7 @@ export const Login: React.FC = () => {
                                         onClick={handleSendCode}
                                         disabled={countdown > 0 || isSendingCode}
                                         className="login-code-button"
+                                        aria-label={isSendingCode ? '正在发送验证码' : countdown > 0 ? `${countdown} 秒后可重新获取验证码` : '获取验证码'}
                                     >
                                         {isSendingCode ? (
                                             <Loader2 className="h-4 w-4 animate-spin" />
