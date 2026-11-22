@@ -1,83 +1,119 @@
-# xiaoying-agent
+<p align="center">
+  <img src="./docs/images/readme-hero.svg" alt="XiaoYing Agent — 多模型 AI 工作助手" width="100%">
+</p>
 
-小英智能体帮你解决一切
-# XiaoYing Agent
+<p align="center">
+  <a href="https://github.com/zhouzefeng123/xiaoying-agent">
+    <img src="https://img.shields.io/badge/GitHub-xiaoying--agent-181717?style=flat-square&logo=github" alt="GitHub">
+  </a>
+  <img src="https://img.shields.io/badge/React-19-149ECA?style=flat-square&logo=react&logoColor=white" alt="React 19">
+  <img src="https://img.shields.io/badge/Go-1.25-00ADD8?style=flat-square&logo=go&logoColor=white" alt="Go 1.25">
+  <img src="https://img.shields.io/badge/MySQL-8.0-4479A1?style=flat-square&logo=mysql&logoColor=white" alt="MySQL 8.0">
+  <img src="https://img.shields.io/badge/Deploy-Docker%20Compose-2496ED?style=flat-square&logo=docker&logoColor=white" alt="Docker Compose">
+</p>
 
-小英智能体是一个面向个人和团队的 AI 工作助手，提供桌面端、网页端和 Go 后端服务。它不仅能进行多模型对话，还可以调用本地工具完成文件处理、代码编辑、终端命令、文档生成、任务调度和多智能体协作。
+<h1 align="center">XiaoYing Agent</h1>
 
-项目采用前后端分离架构：
+<p align="center">
+  一个面向个人与团队的多模型 AI 工作助手，支持浏览器、Electron 桌面端和 Docker 自托管部署。
+</p>
 
-- `xiaoying-agent-web`：React 19 + TypeScript + Vite + Electron 客户端。
-- `xiaoying-agent-api`：Go 后端，提供 Agent、模型接入、工具调用、记忆、数据库和 WebSocket 服务。
-- `deploy`：基于 Docker Compose 的 Web 部署方案，包含 Nginx、Go API 和 MySQL。
+<p align="center">
+  <a href="#界面预览">界面预览</a> ·
+  <a href="#核心能力">核心能力</a> ·
+  <a href="#系统架构">系统架构</a> ·
+  <a href="#快速开始">快速开始</a> ·
+  <a href="#配置说明">配置说明</a>
+</p>
 
-## 主要功能
+## 界面预览
 
-- **多模型支持**：可接入 OpenAI、DeepSeek、Anthropic、Gemini、阿里云百炼、Groq、OpenRouter、Azure OpenAI 等模型服务。
-- **智能体工具调用**：支持读写文件、代码编辑、执行命令、网页抓取、代码检索和诊断。
-- **会话与长期记忆**：支持会话历史、上下文压缩、知识库、记忆检索和认知状态管理。
-- **多智能体协作**：支持任务拆分、子 Agent、并行任务和结果汇总。
-- **桌面与网页双端**：可作为 Electron 桌面应用运行，也可通过浏览器访问。
-- **文档与办公能力**：内置 Word 文档编辑、PPT、Excel、PDF 等技能。
-- **语音交互**：支持语音识别、TTS 和唤醒词等能力。
-- **MCP 与 LSP**：可连接 MCP 工具，并通过 LSP 获取代码诊断信息。
-- **定时任务**：支持后台任务、消息提醒和自动执行。
-- **Docker 部署**：一条命令启动完整的 Web 服务。
+<p align="center">
+  <img src="./docs/images/web-login.png" alt="XiaoYing Agent 登录界面" width="100%">
+  <br>
+  <sub>Web 登录界面 · 截图来自当前项目实际运行版本</sub>
+</p>
+
+## 为什么选择 XiaoYing Agent
+
+XiaoYing Agent 将对话、模型管理、工具调用、长期记忆、文档处理和多智能体协作整合在同一套工作区中。前后端分离的架构让它可以作为桌面应用运行，也可以部署为多人访问的 Web 服务。
+
+> [!NOTE]
+> 项目仍在积极开发中。接口、配置和界面可能持续调整；生产部署前请先阅读[安全提示](#安全提示)，并完成密钥、数据库和访问控制配置。
+
+## 核心能力
+
+| 能力 | 说明 |
+| --- | --- |
+| 多模型对话 | 接入 OpenAI、DeepSeek、Anthropic、Gemini、通义千问、Groq、OpenRouter、Azure OpenAI 等服务。 |
+| 用户模型管理 | 在网页端添加、编辑和切换自定义模型，支持自定义服务地址、模型名称和供应商配置。 |
+| Agent 工具调用 | 读写文件、修改代码、执行命令、搜索仓库、访问网页并完成多步骤任务。 |
+| 会话与上下文 | 会话历史、自动压缩、上下文窗口控制、知识检索与长期记忆。 |
+| 多智能体协作 | 任务拆分、子 Agent、并行执行、消息广播和结果汇总。 |
+| 文档与办公 | 内置 Word 编辑能力，并提供 Excel、PPT、PDF 等文档技能。 |
+| 语音交互 | 支持语音识别、TTS 和唤醒词等浏览器或桌面端能力。 |
+| MCP 与 LSP | 接入 MCP 工具服务器，并通过 LSP 获取代码补全、诊断和语言服务信息。 |
+| 定时任务 | 按用户管理后台任务、执行结果和通知事件。 |
+| Web 与桌面 | 同一前端同时支持浏览器访问和 Electron 桌面打包。 |
+
+## 系统架构
+
+<p align="center">
+  <img src="./docs/images/architecture.svg" alt="XiaoYing Agent 系统架构图" width="100%">
+</p>
+
+核心数据流：
+
+1. 浏览器或 Electron 客户端加载 React 界面。
+2. 开发环境由 Vite 代理请求，生产环境由 Nginx 提供静态资源并反向代理 `/v1`。
+3. Go API 完成登录鉴权、模型路由、Agent 编排、工具执行和 WebSocket 推送。
+4. MySQL 保存会话与业务数据，工作区目录保存文件，外部模型、SMTP、MCP 和 LSP 提供扩展能力。
 
 ## 技术栈
 
 | 模块 | 技术 |
 | --- | --- |
-| 前端 | React 19、TypeScript、Vite、Electron |
-| UI 与编辑 | Tailwind CSS、Monaco Editor、xterm.js |
+| Web 前端 | React 19、TypeScript、Vite、Tailwind CSS |
+| 桌面端 | Electron、electron-builder |
+| 编辑器与终端 | Monaco Editor、xterm.js |
 | 后端 | Go 1.25、Cobra、WebSocket |
-| 数据库 | MySQL 8.0；支持从旧版 SQLite 导入数据 |
-| 部署 | Docker Compose、Nginx |
+| 数据库 | MySQL 8.0；支持从旧版 SQLite 导入 |
 | AI 能力 | 多 LLM Provider、MCP、LSP、Embedding |
+| 部署 | Docker Compose、Nginx |
 
 ## 项目结构
 
 ```text
 xiaoying-agent/
-├── deploy/                    # Docker Compose 生产部署
-│   ├── .env.example           # 部署环境变量模板
-│   ├── docker-compose.yml
+├── docs/
+│   └── images/                 # README 截图与架构图
+├── deploy/                     # Docker Compose 部署
+│   ├── .env.example            # 环境变量模板
+│   ├── docker-compose.yml      # MySQL + Go API + Nginx Web
 │   └── nginx.conf
-├── xiaoying-agent-api/        # Go 后端
-│   ├── cmd/                   # 服务启动和迁移命令
-│   ├── internal/              # Agent、模型、数据库、工具等模块
-│   ├── system_skills/         # 内置系统技能
+├── xiaoying-agent-api/         # Go 后端
+│   ├── cmd/                    # 服务、迁移与工具命令
+│   ├── internal/               # Agent、认证、模型、数据库与工具
+│   ├── system_skills/          # 内置技能
 │   └── main.go
-├── xiaoying-agent-web/        # React / Electron 前端
-│   ├── electron/              # Electron 主进程与预加载脚本
-│   ├── src/                   # React 页面和业务组件
-│   └── vite.config.ts
+├── xiaoying-agent-web/         # React / Electron 前端
+│   ├── electron/               # Electron 主进程与预加载脚本
+│   ├── src/                    # 页面、组件与业务逻辑
+│   └── vite.web.config.ts      # Web 开发代理
 ├── README.md
 └── .gitignore
 ```
 
-## 环境要求
+## 快速开始
 
-### Docker 启动
+### 环境要求
 
-- Docker 24 或更高版本
-- Docker Compose v2
+- Docker 24+ 与 Docker Compose v2，或
+- Node.js 22+、npm 10+、Go 1.25+、MySQL 8.0
 
-### 本地开发
+### 方式一：Docker Compose 启动
 
-- Node.js 22 或更高版本
-- npm 10 或更高版本
-- Go 1.25 或更高版本
-- MySQL 8.0
-- Windows、macOS 或 Linux
-
-Electron 桌面应用目前主要在 Windows 环境下开发和打包。
-
-## 快速启动
-
-### 方式一：Docker 一键启动（推荐）
-
-这种方式会同时启动 MySQL、Go API 和 Nginx Web 页面。
+以下命令会启动 MySQL、Go API 和 Nginx Web 页面。
 
 1. 克隆项目：
 
@@ -86,18 +122,18 @@ git clone https://github.com/zhouzefeng123/xiaoying-agent.git
 cd xiaoying-agent
 ```
 
-2. 准备配置文件：
+2. 创建部署目录并复制配置模板：
 
 ```powershell
 New-Item -ItemType Directory -Force .\deploy\config
-Copy-Item .\deploy\.env.example .\deploy\.env
-Copy-Item .\xiaoying-agent-api\.run\auramate.with-db.json .\deploy\config\.auramate.json
 New-Item -ItemType Directory -Force .\deploy\data\workspace
 New-Item -ItemType Directory -Force .\deploy\data\database
 New-Item -ItemType Directory -Force .\deploy\data\logs
+Copy-Item .\deploy\.env.example .\deploy\.env
+Copy-Item .\xiaoying-agent-api\.run\auramate.with-db.json .\deploy\config\.auramate.json
 ```
 
-如果使用 macOS 或 Linux：
+macOS / Linux：
 
 ```bash
 mkdir -p deploy/config deploy/data/workspace deploy/data/database deploy/data/logs
@@ -105,65 +141,19 @@ cp deploy/.env.example deploy/.env
 cp xiaoying-agent-api/.run/auramate.with-db.json deploy/config/.auramate.json
 ```
 
-3. 编辑 `deploy/.env`，至少修改以下内容：
+3. 编辑 `deploy/.env`，至少替换数据库密码、Web Basic Auth、邮箱白名单和 SMTP 配置。
 
-```dotenv
-MYSQL_ROOT_PASSWORD=请替换为强密码
-BASIC_AUTH_USER=admin
-BASIC_AUTH_PASSWORD=请替换为访问密码
-AUTH_ALLOWED_EMAILS=your-email@example.com
+4. 编辑 `deploy/config/.auramate.json`，填写实际模型服务配置和 API Key。
 
-SMTP_HOST=smtp.example.com
-SMTP_PORT=465
-SMTP_USER=your-email@example.com
-SMTP_PASSWORD=你的邮箱SMTP授权码
-SMTP_FROM=your-email@example.com
-SMTP_TLS=ssl
-```
-
-`AUTH_ALLOWED_EMAILS` 是登录邮箱白名单，支持逗号分隔以及域名通配，例如：
-
-```dotenv
-AUTH_ALLOWED_EMAILS=*@qq.com,*@foxmail.com
-```
-
-4. 编辑 `deploy/config/.auramate.json`，配置模型 API Key：
-
-```json
-{
-  "main_model": {
-    "provider": "openai",
-    "baseURL": "https://api.deepseek.com",
-    "model": "deepseek-chat",
-    "apiKey": "你的模型API Key"
-  },
-  "providers": {
-    "openai": {
-      "apiKey": "你的模型API Key",
-      "disabled": false
-    }
-  }
-}
-```
-
-实际配置文件还包含其他模型和数据库字段，请只替换对应字段，不要删除完整配置结构。数据库连接会由 `deploy/.env` 中的环境变量覆盖，因此不需要手动把数据库地址改成 `mysql`。
-
-5. 启动服务：
+5. 构建并启动：
 
 ```bash
 cd deploy
 docker compose up -d --build
 docker compose ps
-docker compose logs -f api
 ```
 
-6. 访问 Web 页面：
-
-```text
-http://localhost/
-```
-
-根据配置输入 Nginx Basic Auth 账号密码，再使用白名单邮箱获取验证码登录。
+6. 打开 `http://localhost/`，输入 Basic Auth 账号后，再使用白名单邮箱验证码登录。
 
 健康检查：
 
@@ -171,26 +161,23 @@ http://localhost/
 curl -u admin:你的BasicAuth密码 http://127.0.0.1/health
 ```
 
-停止服务：
+查看日志或停止服务：
 
 ```bash
+docker compose logs -f --tail=200 api
 docker compose down
 ```
 
-MySQL 数据保存在 Docker volume 中，普通的 `docker compose down` 不会删除数据库。
+普通的 `docker compose down` 不会删除 MySQL volume 中的数据。
 
-### 方式二：本地开发启动
-
-本地开发需要分别启动 MySQL、Go 后端和 Vite 前端。
+### 方式二：本地开发
 
 #### 1. 启动 MySQL
 
-如果本机没有 MySQL，可以使用 Docker 只启动数据库：
+使用已有 MySQL 8.0 实例，或通过 Docker 单独启动数据库：
 
 ```bash
-docker run -d \
-  --name xiaoying-mysql \
-  -p 3306:3306 \
+docker run -d --name xiaoying-mysql -p 3306:3306 \
   -e MYSQL_ROOT_PASSWORD=xiaoying \
   -e MYSQL_DATABASE=auramate \
   mysql:8.0 \
@@ -198,84 +185,24 @@ docker run -d \
   --collation-server=utf8mb4_unicode_ci
 ```
 
-PowerShell 多行命令写法：
-
-```powershell
-docker run -d --name xiaoying-mysql -p 3306:3306 `
-  -e MYSQL_ROOT_PASSWORD=xiaoying `
-  -e MYSQL_DATABASE=auramate `
-  mysql:8.0 `
-  --character-set-server=utf8mb4 `
-  --collation-server=utf8mb4_unicode_ci
-```
-
-也可以直接使用本机已有的 MySQL 8.0 实例。
-
 #### 2. 启动 Go 后端
-
-先准备后端配置：
 
 ```powershell
 Copy-Item .\xiaoying-agent-api\.run\auramate.with-db.json .\xiaoying-agent-api\.auramate.json
-```
-
-修改 `xiaoying-agent-api/.auramate.json` 中的数据库密码和模型 API Key：
-
-```json
-{
-  "database": {
-    "host": "127.0.0.1",
-    "port": 3306,
-    "user": "root",
-    "password": "xiaoying",
-    "name": "auramate"
-  }
-}
-```
-
-启动后端：
-
-```powershell
 cd .\xiaoying-agent-api
 go mod download
 go run . server --port 3000
 ```
 
-后端健康检查：
+验证后端：
 
 ```powershell
 Invoke-RestMethod http://localhost:3000/health
 ```
 
-如果需要在本地测试邮箱验证码登录，还要在启动后端的同一个终端设置：
+#### 3. 启动 Web 前端
 
-```powershell
-$env:AURAMATE_AUTH_ALLOWED_EMAILS = "your-email@example.com"
-$env:AURAMATE_SMTP_HOST = "smtp.example.com"
-$env:AURAMATE_SMTP_PORT = "465"
-$env:AURAMATE_SMTP_USER = "your-email@example.com"
-$env:AURAMATE_SMTP_PASSWORD = "你的邮箱SMTP授权码"
-$env:AURAMATE_SMTP_FROM = "your-email@example.com"
-$env:AURAMATE_SMTP_TLS = "ssl"
-go run . server --port 3000
-```
-
-macOS 或 Linux 可使用：
-
-```bash
-export AURAMATE_AUTH_ALLOWED_EMAILS="your-email@example.com"
-export AURAMATE_SMTP_HOST="smtp.example.com"
-export AURAMATE_SMTP_PORT="465"
-export AURAMATE_SMTP_USER="your-email@example.com"
-export AURAMATE_SMTP_PASSWORD="你的邮箱SMTP授权码"
-export AURAMATE_SMTP_FROM="your-email@example.com"
-export AURAMATE_SMTP_TLS="ssl"
-go run . server --port 3000
-```
-
-#### 3. 启动前端
-
-打开新的终端：
+另开一个终端：
 
 ```powershell
 cd .\xiaoying-agent-web
@@ -283,50 +210,28 @@ npm ci
 npm run dev:web
 ```
 
-浏览器访问终端输出的地址，默认通常为：
+浏览器访问：
 
 ```text
 http://localhost:5173
 ```
 
-Vite 会把 `/v1` 和 WebSocket 请求代理到 `http://localhost:3000`。
-
-如果需要调试 Electron 桌面端：
+Vite 会把 `/v1`、WebSocket 和 `/health` 请求代理到 `http://localhost:3000`。需要让同一局域网内的设备访问时，可运行：
 
 ```powershell
+npm run dev:web -- --host 0.0.0.0
+```
+
+#### 4. 启动 Electron 桌面端
+
+```powershell
+cd .\xiaoying-agent-web
 npm run dev
 ```
 
-## 模型配置
+## 配置说明
 
-模型配置位于 `.auramate.json`。常见配置位置：
-
-- 当前目录：`./.auramate.json`
-- 用户目录：`~/.auramate.json`
-- `$XDG_CONFIG_HOME/auramate/.auramate.json`
-
-也可以通过环境变量指定配置文件：
-
-```powershell
-$env:AURAMATE_CONFIG_FILE = "D:\path\to\.auramate.json"
-```
-
-常见模型环境变量：
-
-| 环境变量 | 用途 |
-| --- | --- |
-| `OPENAI_API_KEY` | OpenAI |
-| `ANTHROPIC_API_KEY` | Anthropic |
-| `GEMINI_API_KEY` | Google Gemini |
-| `GROQ_API_KEY` | Groq |
-| `GITHUB_TOKEN` | GitHub Copilot |
-| `LOCAL_ENDPOINT` | OpenAI 兼容的本地模型服务 |
-| `AURAMATE_WORKSPACE` | Agent 工作区目录 |
-| `AURAMATE_LOG_PATH` | 日志目录 |
-
-API Key 也可以写入 `.auramate.json` 的 `providers` 或 `main_model` 字段。请勿把包含真实 Key 的配置文件提交到 Git。
-
-## 常用环境变量
+### 常用环境变量
 
 | 环境变量 | 说明 | 默认值 |
 | --- | --- | --- |
@@ -334,99 +239,142 @@ API Key 也可以写入 `.auramate.json` 的 `providers` 或 `main_model` 字段
 | `AURAMATE_DB_PORT` | MySQL 端口 | `3306` |
 | `AURAMATE_DB_USER` | MySQL 用户 | `root` |
 | `AURAMATE_DB_PASSWORD` | MySQL 密码 | 空 |
-| `AURAMATE_DB_NAME` | 数据库名称 | `auramate` |
+| `AURAMATE_DB_NAME` | 数据库名 | `auramate` |
 | `AURAMATE_CONFIG_FILE` | 配置文件路径 | 自动查找 |
-| `AURAMATE_WORKSPACE` | 工作区路径 | 自动创建 |
+| `AURAMATE_WORKSPACE` | Agent 工作区路径 | 自动创建 |
 | `AURAMATE_AUTH_ALLOWED_EMAILS` | 登录邮箱白名单 | 空 |
 | `AURAMATE_SMTP_HOST` | SMTP 服务器 | 空 |
 | `AURAMATE_SMTP_PORT` | SMTP 端口 | `465` |
 | `AURAMATE_SMTP_TLS` | `ssl` 或 `starttls` | `ssl` |
 | `AURAMATE_COOKIE_SECURE` | HTTPS 环境设为 `true` | `false` |
 
-如果邮箱白名单或 SMTP 未配置，验证码登录会返回 `503`，并提示“邮件服务未配置”。
+邮箱白名单支持逗号分隔和域名通配：
 
-## 构建
+```dotenv
+AUTH_ALLOWED_EMAILS=admin@example.com,*@example.org
+```
 
-### 前端构建
+### 模型配置
+
+模型配置位于 `.auramate.json`，常见位置包括：
+
+- 项目目录：`./.auramate.json`
+- 用户目录：`~/.auramate.json`
+- `AURAMATE_CONFIG_FILE` 指定的路径
+
+简化示例：
+
+```json
+{
+  "main_model": {
+    "provider": "openai",
+    "baseURL": "https://api.deepseek.com",
+    "model": "deepseek-chat",
+    "apiKey": "replace-with-your-key"
+  },
+  "providers": {
+    "openai": {
+      "apiKey": "replace-with-your-key",
+      "disabled": false
+    }
+  }
+}
+```
+
+也可以使用以下环境变量接入模型：
+
+| 环境变量 | 用途 |
+| --- | --- |
+| `OPENAI_API_KEY` | OpenAI 或兼容服务 |
+| `ANTHROPIC_API_KEY` | Anthropic Claude |
+| `GEMINI_API_KEY` | Google Gemini |
+| `GROQ_API_KEY` | Groq |
+| `GITHUB_TOKEN` | GitHub Copilot |
+| `LOCAL_ENDPOINT` | OpenAI 兼容的本地模型服务 |
+
+不要提交包含真实 API Key、SMTP 授权码或数据库密码的配置文件。
+
+## 常用 API
+
+| 路径 | 说明 |
+| --- | --- |
+| `GET /health` | 服务健康检查 |
+| `POST /v1/chat/completions` | 流式对话 |
+| `GET /v1/ws` | WebSocket 事件通道 |
+| `GET/POST /v1/user-models` | 用户模型配置管理 |
+| `GET /v1/models` | 可用模型列表 |
+| `GET /v1/sessions` | 用户会话列表 |
+| `GET /v1/memories` | 长期记忆 |
+| `GET /v1/tasks` | 定时任务 |
+| `POST /v1/auth/send-email-code` | 发送邮箱验证码 |
+| `POST /v1/auth/login` | 邮箱验证码登录 |
+
+除健康检查和认证配置外，大多数 `/v1` 接口需要有效登录会话。
+
+## 构建与测试
+
+### Web 与 Electron
 
 ```powershell
 cd .\xiaoying-agent-web
 npm ci
+npm exec vitest run
 npm run build
+npm run lint
 ```
 
-构建结果输出到 `xiaoying-agent-web/dist`。
-
-### 后端构建
+生成 Electron 安装包：
 
 ```powershell
-cd .\xiaoying-agent-api
-go build -o auramate.exe .
-.\auramate.exe server --port 3000
-```
-
-macOS 或 Linux：
-
-```bash
-cd xiaoying-agent-api
-go build -o auramate .
-./auramate server --port 3000
-```
-
-Windows 生产版打包可执行：
-
-```powershell
-cd .\xiaoying-agent-api
-.\package_prod.bat
-```
-
-### Electron 桌面应用打包
-
-```powershell
-cd .\xiaoying-agent-web
 npm run package
 ```
 
-桌面端打包依赖后端 `release_bundle` 中的运行时资源，建议先完成后端生产构建。
-
-## 测试
+### Go 后端
 
 ```powershell
 cd .\xiaoying-agent-api
 go test ./...
-
-cd ..\xiaoying-agent-web
-npm run lint
+go build -o auramate.exe .
 ```
 
-部分集成测试需要本机 MySQL、模型 API Key 或外部服务；缺少依赖时请以单元测试结果为准。
+macOS / Linux：
 
-## 数据与持久化
+```bash
+cd xiaoying-agent-api
+go test ./...
+go build -o auramate .
+```
 
-Docker 部署的数据位置：
+部分集成测试依赖 MySQL、模型 API Key 或外部服务；缺少依赖时，请以能够独立运行的单元测试结果为准。
 
-| 数据 | 位置 |
+## 部署与数据
+
+| 数据 | Docker 部署位置 |
 | --- | --- |
 | MySQL | Docker volume `xiaoying_mysql_data` |
 | 用户工作区 | `deploy/data/workspace` |
 | 后端日志 | `deploy/data/logs` |
 | 应用配置 | `deploy/config/.auramate.json` |
 
-以下文件不应提交到 Git：
+以下内容不应提交到 Git：
 
 - `.env`
 - `.auramate.json`
 - `database/*.db`
 - `workspace/`
 - `logs/`
-- `release-v2/`
 - `node_modules/`
+- `dist/`
+- `release-v2/`
+- 用户模型凭据目录
 
 ## 安全提示
 
-- Agent 具备执行命令和修改文件的能力，请只授予可信用户使用。
-- 生产环境建议将 `debug` 设为 `false`。
-- 如需每次工具调用前确认，可在 `.auramate.json` 中设置：
+- Agent 能执行命令并修改工作区文件，只应授权给可信用户使用。
+- 不要把 Go 后端 `3000` 端口直接暴露到公网，应通过 Nginx 或网关访问。
+- 生产环境请关闭调试日志，并为 Web 入口增加认证、HTTPS 和访问频率限制。
+- Web 端已经按用户隔离会话、工作区和大部分业务数据，但这属于应用层隔离，不等同于容器级安全沙箱。
+- 需要每次工具调用前确认时，可在配置中设置：
 
 ```json
 {
@@ -436,39 +384,22 @@ Docker 部署的数据位置：
 }
 ```
 
-- 不要直接把后端 `3000` 端口暴露到公网，应通过 Nginx 或网关访问。
-- 公网部署建议启用 HTTPS；浏览器麦克风和语音功能通常要求安全上下文。
-- 定期备份 MySQL 数据和用户工作区。
-
-## 常见问题
-
-### 前端显示无法连接后端
-
-确认后端已经启动并监听 `3000` 端口：
-
-```bash
-curl http://localhost:3000/health
-```
-
-如果修改了后端端口，需要同步修改 `xiaoying-agent-web/vite.config.ts` 和 `vite.web.config.ts` 中的代理目标。
-
-### 登录提示“邮件服务未配置”
-
-检查是否设置了 `AURAMATE_AUTH_ALLOWED_EMAILS` 以及完整的 SMTP 配置。SMTP 密码通常需要使用邮箱服务商提供的授权码，而不是邮箱登录密码。
-
-### 后端无法连接 MySQL
-
-确认 MySQL 8.0 已启动、端口可访问，并且 `.auramate.json` 或 `AURAMATE_DB_*` 环境变量中的用户名、密码和数据库名称正确。
-
-### 提示 OpenVINO Embedding 不可用
-
-该能力用于本地向量记忆。缺少 OpenVINO 运行时不会阻止聊天和普通工具调用，但向量检索会自动降级。Docker Linux 镜像默认不包含该运行时。
+- 定期备份 MySQL 数据、工作区文件和部署配置。
 
 ## 更多文档
 
-- 后端能力与详细配置：`xiaoying-agent-api/README.md`
-- Docker 部署、登录与多用户说明：`deploy/README.md`
+- 后端说明：[xiaoying-agent-api/README.md](./xiaoying-agent-api/README.md)
+- 前端说明：[xiaoying-agent-web/README.md](./xiaoying-agent-web/README.md)
+- Docker 部署与多用户说明：[deploy/README.md](./deploy/README.md)
+
+## 参与贡献
+
+1. Fork 本仓库并创建功能分支。
+2. 完成修改后运行相关构建和测试。
+3. 在 Pull Request 中说明改动范围、验证方式和潜在风险。
+
+项目仓库：[https://github.com/zhouzefeng123/xiaoying-agent](https://github.com/zhouzefeng123/xiaoying-agent)
 
 ## 许可证
 
-后端目录包含 MIT License，详情见 `xiaoying-agent-api/LICENSE`。
+后端目录附带 [MIT License](./xiaoying-agent-api/LICENSE)。第三方依赖、内置技能和随项目分发的资源可能适用各自许可证，发布或商用前请逐一确认。

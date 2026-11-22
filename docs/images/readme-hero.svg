@@ -1,0 +1,131 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 420" role="img" aria-labelledby="heroTitle heroDesc">
+  <title id="heroTitle">XiaoYing Agent</title>
+  <desc id="heroDesc">XiaoYing Agent multi-model AI workspace</desc>
+  <defs>
+    <linearGradient id="bg" x1="40" y1="30" x2="1120" y2="400" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#071426"/>
+      <stop offset="0.55" stop-color="#0b1f38"/>
+      <stop offset="1" stop-color="#102f4b"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#64e6d4"/>
+      <stop offset="1" stop-color="#4b9cff"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#ffe38b"/>
+      <stop offset="1" stop-color="#ff9f57"/>
+    </linearGradient>
+    <linearGradient id="robotShell" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#f8fbff"/>
+      <stop offset="0.55" stop-color="#d9edff"/>
+      <stop offset="1" stop-color="#82baff"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0" cy="0" r="1" gradientTransform="translate(930 205) rotate(90) scale(210 300)" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#2fc7ff" stop-opacity="0.3"/>
+      <stop offset="1" stop-color="#2fc7ff" stop-opacity="0"/>
+    </radialGradient>
+    <pattern id="grid" width="34" height="34" patternUnits="userSpaceOnUse">
+      <path d="M34 0H0V34" fill="none" stroke="#b6dcff" stroke-opacity="0.055"/>
+    </pattern>
+    <filter id="softGlow" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="12"/>
+    </filter>
+    <filter id="shadow" x="-40%" y="-40%" width="180%" height="180%">
+      <feDropShadow dx="0" dy="14" stdDeviation="18" flood-color="#00152f" flood-opacity="0.5"/>
+    </filter>
+  </defs>
+
+  <rect width="1200" height="420" rx="32" fill="url(#bg)"/>
+  <rect width="1200" height="420" rx="32" fill="url(#grid)"/>
+  <circle cx="936" cy="208" r="224" fill="url(#glow)"/>
+  <circle cx="1080" cy="64" r="6" fill="#71e8d8"/>
+  <circle cx="1112" cy="94" r="3" fill="#83bfff"/>
+  <circle cx="1028" cy="350" r="4" fill="#ffd376"/>
+
+  <g transform="translate(78 72)">
+    <rect width="104" height="30" rx="15" fill="#1b3c5c" stroke="#3a6f95"/>
+    <circle cx="18" cy="15" r="4" fill="#68e3d2"/>
+    <text x="30" y="20" fill="#c9e7ff" font-family="Segoe UI, Microsoft YaHei, sans-serif" font-size="12" font-weight="600" letter-spacing="1.4">XIAOYING AGENT</text>
+  </g>
+
+  <text x="78" y="168" fill="#f7fbff" font-family="Segoe UI, Microsoft YaHei, sans-serif" font-size="56" font-weight="800" letter-spacing="-1.8">XiaoYing Agent</text>
+  <text x="80" y="207" fill="#b7d7f5" font-family="Segoe UI, Microsoft YaHei, sans-serif" font-size="21">会思考、会用工具、能协作的 AI 工作助手</text>
+
+  <g font-family="Segoe UI, Microsoft YaHei, sans-serif" font-size="14" font-weight="600">
+    <g transform="translate(80 248)">
+      <rect width="108" height="36" rx="18" fill="#113452" stroke="#285b7d"/>
+      <text x="54" y="23" text-anchor="middle" fill="#d8f7f2">多模型接入</text>
+    </g>
+    <g transform="translate(200 248)">
+      <rect width="108" height="36" rx="18" fill="#113452" stroke="#285b7d"/>
+      <text x="54" y="23" text-anchor="middle" fill="#d8f7f2">工具调用</text>
+    </g>
+    <g transform="translate(320 248)">
+      <rect width="108" height="36" rx="18" fill="#113452" stroke="#285b7d"/>
+      <text x="54" y="23" text-anchor="middle" fill="#d8f7f2">长期记忆</text>
+    </g>
+    <g transform="translate(440 248)">
+      <rect width="108" height="36" rx="18" fill="#113452" stroke="#285b7d"/>
+      <text x="54" y="23" text-anchor="middle" fill="#d8f7f2">多智能体</text>
+    </g>
+  </g>
+
+  <g transform="translate(80 320)" font-family="Segoe UI, Microsoft YaHei, sans-serif">
+    <rect width="426" height="52" rx="14" fill="#091a2e" stroke="#234863"/>
+    <path d="M18 26h12M24 20v12" stroke="#65e6d5" stroke-width="2" stroke-linecap="round"/>
+    <text x="45" y="22" fill="#e8f4ff" font-size="13" font-weight="600">React + Go + MySQL</text>
+    <text x="45" y="39" fill="#789bb8" font-size="11">Web、Desktop 与自托管部署</text>
+    <circle cx="390" cy="26" r="4" fill="#60e3d1"/>
+    <text x="402" y="30" fill="#86c9b9" font-size="11">READY</text>
+  </g>
+
+  <g transform="translate(790 45)">
+    <ellipse cx="192" cy="330" rx="148" ry="17" fill="#04101f" opacity="0.55"/>
+
+    <g transform="translate(99 22)">
+      <circle cx="0" cy="0" r="26" fill="#4ccfff" opacity="0.16" filter="url(#softGlow)"/>
+      <path d="M0 14v21" stroke="#4b9cff" stroke-width="5"/>
+      <circle cx="0" cy="0" r="12" fill="#fff7c7" stroke="#ffd76c" stroke-width="4"/>
+    </g>
+
+    <path d="M54 96h276c23 0 42 19 42 42v118c0 24-19 43-42 43H54c-23 0-42-19-42-43V138c0-23 19-42 42-42Z" fill="url(#robotShell)" stroke="#4d8fd7" stroke-width="5" filter="url(#shadow)"/>
+    <rect x="34" y="116" width="316" height="150" rx="55" fill="#0b1e37" stroke="#2f6fa8" stroke-width="4"/>
+    <rect x="62" y="133" width="260" height="116" rx="42" fill="#08182d"/>
+    <path d="M58 189c23-55 62-82 116-82h24c54 0 94 27 116 82" fill="none" stroke="#3d83bd" stroke-width="3" opacity="0.75"/>
+
+    <g>
+      <ellipse cx="145" cy="190" rx="17" ry="23" fill="#69efff"/>
+      <ellipse cx="145" cy="190" rx="8" ry="18" fill="#e2ffff" opacity="0.7"/>
+      <ellipse cx="239" cy="190" rx="17" ry="23" fill="#69efff"/>
+      <ellipse cx="239" cy="190" rx="8" ry="18" fill="#e2ffff" opacity="0.7"/>
+    </g>
+    <path d="M178 224c9 10 19 10 28 0" fill="none" stroke="#ffb45c" stroke-width="5" stroke-linecap="round"/>
+    <ellipse cx="105" cy="224" rx="11" ry="5" fill="#f49ab6" opacity="0.85"/>
+    <ellipse cx="279" cy="224" rx="11" ry="5" fill="#f49ab6" opacity="0.85"/>
+
+    <path d="M21 160c-18 7-25 28-25 52s7 45 25 52l12-13v-78l-12-13Z" fill="#86beff" stroke="#3979c8" stroke-width="4"/>
+    <path d="M363 160c18 7 25 28 25 52s-7 45-25 52l-12-13v-78l12-13Z" fill="#86beff" stroke="#3979c8" stroke-width="4"/>
+    <path d="M2 181v60" stroke="url(#gold)" stroke-width="8" stroke-linecap="round"/>
+    <path d="M382 181v60" stroke="url(#gold)" stroke-width="8" stroke-linecap="round"/>
+    <path d="M67 298c-10 18-5 44 17 48 10 2 16-7 22-18l-39-30Z" fill="url(#robotShell)" stroke="#3979c8" stroke-width="4"/>
+    <path d="M317 298c10 18 5 44-17 48-10 2-16-7-22-18l39-30Z" fill="url(#robotShell)" stroke="#3979c8" stroke-width="4"/>
+
+    <g transform="translate(270 34)">
+      <rect width="93" height="62" rx="14" fill="#102a43" stroke="#2c617e" filter="url(#shadow)"/>
+      <circle cx="17" cy="17" r="5" fill="#64e6d4"/>
+      <text x="29" y="21" fill="#dff8f3" font-family="Segoe UI, Microsoft YaHei, sans-serif" font-size="11" font-weight="600">Agent</text>
+      <rect x="14" y="34" width="61" height="5" rx="2.5" fill="#6388a4"/>
+      <rect x="14" y="45" width="43" height="5" rx="2.5" fill="#31536f"/>
+    </g>
+    <g transform="translate(-54 267)">
+      <rect width="108" height="62" rx="14" fill="#102a43" stroke="#2c617e" filter="url(#shadow)"/>
+      <circle cx="17" cy="17" r="5" fill="#ffd478"/>
+      <text x="29" y="21" fill="#fff1cf" font-family="Segoe UI, Microsoft YaHei, sans-serif" font-size="11" font-weight="600">Tools</text>
+      <rect x="14" y="34" width="75" height="5" rx="2.5" fill="#6388a4"/>
+      <rect x="14" y="45" width="49" height="5" rx="2.5" fill="#31536f"/>
+    </g>
+  </g>
+
+  <path d="M720 72c36-18 69-19 104-4" fill="none" stroke="url(#accent)" stroke-width="2" opacity="0.45"/>
+  <path d="M738 350c44 20 85 18 124-7" fill="none" stroke="#5d9bd0" stroke-width="1.5" opacity="0.3"/>
+</svg>
