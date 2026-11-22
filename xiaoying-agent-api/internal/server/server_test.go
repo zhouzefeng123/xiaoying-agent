@@ -146,7 +146,7 @@ func TestResolveHTTPChatPlan(t *testing.T) {
 			model:        "aura-coder",
 			wantAgent:    config.AgentCoder,
 			wantMode:     "coding",
-			wantPrimary:  "deepseek-v4-flash",
+			wantPrimary:  "custom-main-model",
 			wantStartLSP: true,
 		},
 		{
@@ -154,7 +154,7 @@ func TestResolveHTTPChatPlan(t *testing.T) {
 			model:        "glm-5.1",
 			wantAgent:    config.AgentCoder,
 			wantMode:     "coding",
-			wantPrimary:  "glm-5.1",
+			wantPrimary:  "custom-main-model",
 			wantStartLSP: true,
 		},
 		{
@@ -162,7 +162,7 @@ func TestResolveHTTPChatPlan(t *testing.T) {
 			model:        "aura-life",
 			wantAgent:    config.AgentLife,
 			wantMode:     "autonomous",
-			wantPrimary:  "deepseek-v4-flash",
+			wantPrimary:  "custom-main-model",
 			wantStartLSP: false,
 		},
 		{
@@ -170,7 +170,7 @@ func TestResolveHTTPChatPlan(t *testing.T) {
 			model:        "aura-normal",
 			wantAgent:    config.AgentNormal,
 			wantMode:     "normal",
-			wantPrimary:  "deepseek-v4-flash",
+			wantPrimary:  "custom-main-model",
 			wantStartLSP: false,
 		},
 		{
@@ -178,7 +178,7 @@ func TestResolveHTTPChatPlan(t *testing.T) {
 			model:        "unknown-model",
 			wantAgent:    config.AgentCoder,
 			wantMode:     "coding",
-			wantPrimary:  "deepseek-v4-flash",
+			wantPrimary:  "custom-main-model",
 			wantStartLSP: true,
 		},
 	}
@@ -336,10 +336,10 @@ func TestResolveExplicitRequestedChatModel(t *testing.T) {
 		model string
 		want  string
 	}{
-		{name: "empty", model: "", want: ""},
-		{name: "alias is not explicit", model: "aura-coder", want: ""},
-		{name: "supported explicit model", model: "glm-5.1", want: "glm-5.1"},
-		{name: "built-in volc explicit model", model: "deepseek-v4-flash", want: "deepseek-v4-flash"},
+		{name: "empty", model: "", want: "custom-main-model"},
+		{name: "alias is not explicit", model: "aura-coder", want: "custom-main-model"},
+		{name: "supported explicit model", model: "glm-5.1", want: "custom-main-model"},
+		{name: "built-in volc explicit model", model: "deepseek-v4-flash", want: "custom-main-model"},
 	}
 
 	for _, tt := range tests {

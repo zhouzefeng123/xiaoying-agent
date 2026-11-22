@@ -4,6 +4,15 @@ import { toast } from 'sonner';
 
 const USER_REFRESH_INTERVAL_MS = 60_000;
 
+async function readAuthResponse(response: Response) {
+    const text = await response.text();
+    try {
+        return JSON.parse(text);
+    } catch {
+        throw new Error(response.ok ? '登录服务返回了无效响应，请重试' : text.trim() || '登录服务暂时不可用，请稍后重试');
+    }
+}
+
 function readStoredUser(): UserProfile | null {
     const storedUser = localStorage.getItem('auth_user');
     if (!storedUser) {
@@ -164,16 +173,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     const login: AuthContextType['login'] = useCallback(async (username, code) => {
         try {
-            console.log('Attempting login:', { username, code });
             const res = await fetch('/v1/auth/login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ username, code }) // Use 'username' instead of 'email'
             });
             
-            const data = await res.json();
-            console.log('Login response:', data);
-            
+            const data = await readAuthResponse(res);
+
             if (!res.ok) {
                 throw new Error(data.message || 'Login failed');
             }
@@ -210,7 +217,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                      
                      // Preserve user-managed persisted window size after login.
                  } else {
-                     console.error('Login successful but no token:', data);
                      throw new Error('Login successful but no token received');
                  }
             } else {
@@ -231,8 +237,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 body: JSON.stringify({ email })
             });
             
-            const data = await res.json();
-            console.log('Send code response:', data); // Log full response
+            const data = await readAuthResponse(res);
             
             // Allow code 0, 200, or if data.status is 'success'
             // Also check if data itself is "success" string or if it has send_at (from OpenAPI spec)

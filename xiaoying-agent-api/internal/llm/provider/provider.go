@@ -244,6 +244,9 @@ func NewProvider(providerName models.ModelProvider, opts ...ProviderClientOption
 		clientOptions.openaiOptions = append(clientOptions.openaiOptions,
 			WithOpenAIBaseURL(baseURL),
 		)
+		if clientOptions.model.BaseURL != "" {
+			clientOptions.openaiOptions = append(clientOptions.openaiOptions, WithOpenAIBaseURL(clientOptions.model.BaseURL))
+		}
 		return &baseProvider[OpenAIClient]{
 			options: clientOptions,
 			client:  newOpenAIClient(clientOptions),

@@ -698,8 +698,11 @@ func newOpenAIClient(opts providerClientOptions) OpenAIClient {
 	}
 
 	openaiClientOptions := []option.RequestOption{}
-	if opts.apiKey != "" {
+	if opts.apiKey != "" || opts.model.ID == models.ModelID("custom-main-model") || strings.HasPrefix(string(opts.model.ID), config.UserModelPrefix) {
 		openaiClientOptions = append(openaiClientOptions, option.WithAPIKey(opts.apiKey))
+	}
+	if opts.apiKey == "" && (opts.model.ID == models.ModelID("custom-main-model") || strings.HasPrefix(string(opts.model.ID), config.UserModelPrefix)) {
+		openaiClientOptions = append(openaiClientOptions, option.WithHeader("Authorization", ""))
 	}
 	if openaiOpts.baseURL != "" {
 		openaiClientOptions = append(openaiClientOptions, option.WithBaseURL(openaiOpts.baseURL))

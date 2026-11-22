@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -66,7 +67,7 @@ type Server struct {
 	wordEditorMu       sync.Mutex
 	wordEditorLastEmit map[string]wordEditorEmission
 
-	pendingNotifications []Event
+	pendingNotifications     []Event
 	pendingUserNotifications map[string][]Event
 
 	watcher *Watcher
@@ -360,13 +361,13 @@ func New(app *app.App, port int) *Server {
 				return true // Allow all origins for local development (Sidecar mode)
 			},
 		},
-		activeGens:         make(map[string]context.CancelFunc),
-		clients:            make(map[*websocket.Conn]*sync.Mutex),
-		clientUsers:        make(map[*websocket.Conn]string),
+		activeGens:               make(map[string]context.CancelFunc),
+		clients:                  make(map[*websocket.Conn]*sync.Mutex),
+		clientUsers:              make(map[*websocket.Conn]string),
 		pendingUserNotifications: make(map[string][]Event),
-		wordEditorLastEmit: make(map[string]wordEditorEmission),
-		goWord:             app.GoWord,
-		StartTime:          time.Now(),
+		wordEditorLastEmit:       make(map[string]wordEditorEmission),
+		goWord:                   app.GoWord,
+		StartTime:                time.Now(),
 	}
 
 	// Initialize File Watcher
@@ -614,6 +615,8 @@ func (s *Server) Start() error {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/v1/ws", s.handleWebSocket)
 	mux.HandleFunc("/v1/models", s.handleModels)
+	mux.HandleFunc("/v1/user-models", s.handleUserModels)
+	mux.HandleFunc("/v1/user-models/", s.handleUserModels)
 	mux.HandleFunc("/v1/debug/agent", s.handleDebugAgent)
 
 	mux.HandleFunc("/v1/transcribe", s.handleTranscribe)
@@ -672,6 +675,7 @@ func (s *Server) Start() error {
 	mux.HandleFunc("/v1/chat/completions", s.handleChatCompletions)
 
 	// Aura Auth API
+	mux.HandleFunc("/v1/auth/config", s.handleAuthConfig)
 	mux.HandleFunc("/v1/auth/send-email-code", s.handleSendEmailCode)
 	mux.HandleFunc("/v1/auth/login", s.handleLogin)
 	mux.HandleFunc("/v1/auth/logout", s.handleLocalLogout)
@@ -754,6 +758,11 @@ func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Return MCP Servers Config from dedicated MCP file
+		if config.UserEmailFromContext(r.Context()) != "" {
+			delete(resp, "aliyun_api_key")
+			delete(resp, "main_model")
+			delete(resp, "models")
+		}
 		if err := config.ReloadMCPServers(); err != nil {
 			logging.Warn("failed to reload dedicated MCP config", "error", err)
 		}
@@ -782,11 +791,12 @@ func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
 			APIKey   string `json:"api_key"`
 			// Optional: Update Main Model Config
 			MainModel *struct {
-				Provider  string `json:"provider"`
-				Model     string `json:"model"`
-				APIKey    string `json:"api_key"`
-				BaseURL   string `json:"base_url"`
-				MaxTokens int64  `json:"max_tokens"`
+				Provider            string `json:"provider"`
+				Model               string `json:"model"`
+				APIKey              string `json:"api_key"`
+				BaseURL             string `json:"base_url"`
+				MaxTokens           int64  `json:"max_tokens"`
+				SupportsAttachments *bool  `json:"supports_attachments"`
 			} `json:"main_model"`
 			// Optional: Update Agents Config
 			Agents map[string]struct {
@@ -817,7 +827,36 @@ func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Invalid request body", http.StatusBadRequest)
 			return
 		}
+		if req.MainModel != nil {
+			if config.UserEmailFromContext(r.Context()) != "" {
+				writeLocalAuthError(w, 400, "请在右下角的模型配置中管理当前账号的模型")
+				return
+			}
+			m := req.MainModel
+			if strings.TrimSpace(m.Model) == "" {
+				http.Error(w, "请填写模型名称", http.StatusBadRequest)
+				return
+			}
+			if m.Provider != "" && m.Provider != "openai" && m.Provider != "custom" && m.Provider != "ollama" {
+				http.Error(w, "请选择 OpenAI 兼容接口或 Ollama", http.StatusBadRequest)
+				return
+			}
+			if raw := strings.TrimSpace(m.BaseURL); raw != "" {
+				u, err := url.Parse(raw)
+				if err != nil || u.Host == "" || (u.Scheme != "http" && u.Scheme != "https") {
+					http.Error(w, "接口地址需为有效的 HTTP 或 HTTPS 地址", http.StatusBadRequest)
+					return
+				}
+			} else if m.Provider == "custom" {
+				http.Error(w, "请填写自定义接口地址", http.StatusBadRequest)
+				return
+			}
+		}
 
+		if config.UserEmailFromContext(r.Context()) != "" && (req.Provider != "" || req.Models != nil || req.Agents != nil) {
+			writeLocalAuthError(w, 400, "请使用当前账号的模型配置接口")
+			return
+		}
 		configFile := getConfigPath()
 		data, err := os.ReadFile(configFile)
 		if err != nil {
@@ -856,7 +895,6 @@ func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
 
 		// Update Main Model Config if provided
 		if req.MainModel != nil {
-			shouldRestart = true
 			var existingMainModel map[string]interface{}
 			if existing, ok := configMap["main_model"].(map[string]interface{}); ok {
 				existingMainModel = existing
@@ -864,6 +902,9 @@ func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
 
 			mainModel, enabled := buildPersistedMainModelConfig(existingMainModel, req.MainModel.Provider, req.MainModel.Model, req.MainModel.APIKey, req.MainModel.BaseURL, req.MainModel.MaxTokens)
 			if enabled {
+				if req.MainModel.SupportsAttachments != nil {
+					mainModel["supportsAttachments"] = *req.MainModel.SupportsAttachments
+				}
 				configMap["main_model"] = mainModel
 			} else {
 				delete(configMap, "main_model")
@@ -948,6 +989,17 @@ func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		if req.MainModel != nil {
+			var saved struct {
+				MainModel *config.MainModelConfig `json:"main_model"`
+			}
+			if err := json.Unmarshal(updatedData, &saved); err != nil {
+				http.Error(w, "Failed to apply model config", http.StatusInternalServerError)
+				return
+			}
+			config.ApplyMainModel(saved.MainModel)
+		}
+
 		if shouldRestart {
 			w.WriteHeader(http.StatusOK)
 			json.NewEncoder(w).Encode(map[string]string{"status": "success", "needs_restart": "true", "message": "Config updated. Restart required."})
@@ -955,7 +1007,7 @@ func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
 		}
 
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(map[string]string{"status": "success", "message": "MCP config updated (hot-reloaded)."})
+		json.NewEncoder(w).Encode(map[string]string{"status": "success", "message": "Configuration applied."})
 		return
 	}
 
@@ -1422,9 +1474,24 @@ func (s *Server) Shutdown(ctx context.Context) error {
 
 func (s *Server) handleModels(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	// Convert map to list for frontend
-	modelList := make([]models.Model, 0, len(models.SupportedModels))
-	for _, m := range models.SupportedModels {
+	if email := config.UserEmailFromContext(r.Context()); email != "" {
+		settings, err := config.LoadUserModels(email)
+		if err != nil {
+			writeLocalAuthError(w, 500, "读取模型列表失败")
+			return
+		}
+		list := make([]models.Model, 0, len(settings.Models))
+		for _, item := range settings.Models {
+			m := item.Resolved()
+			m.APIKey = ""
+			list = append(list, m)
+		}
+		_ = json.NewEncoder(w).Encode(list)
+		return
+	}
+	modelList := make([]models.Model, 0, 1)
+	if m, ok := config.CurrentMainModel(); ok {
+		m.APIKey = ""
 		modelList = append(modelList, m)
 	}
 	json.NewEncoder(w).Encode(modelList)
@@ -1751,8 +1818,7 @@ func (s *Server) handleDebugAgent(w http.ResponseWriter, r *http.Request) {
 		cfg := s.app.Config
 
 		resp := map[string]interface{}{
-			"main_model_config": cfg.MainModel,
-			"agents":            map[string]interface{}{},
+			"agents": map[string]interface{}{},
 		}
 
 		targetAgents := []config.AgentName{
@@ -1963,6 +2029,11 @@ func (s *Server) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 
 		// Default to Chat if type is missing or "chat"
 		if msg.Type == "" || msg.Type == ClientMessageTypeChat {
+			modelCtx, modelErr := config.ResolveUserRequestModel(ctx, msg.Model)
+			if modelErr != nil {
+				writeJSON(Event{Type: EventTypeError, Content: modelErr.Error(), SessionID: msg.SessionID, Data: map[string]any{"code": 1400}})
+				continue
+			}
 			// Sanitize user input for encoding issues
 			sanitized := utils.SanitizeUTF8(msg.Content)
 			if sanitized.WasModified {
@@ -1990,7 +2061,7 @@ func (s *Server) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 				logging.Warn("Failed to update placeholder session title", "session_id", msg.SessionID, "error", err)
 			}
 			// Create cancellable context for this generation
-			genCtx, genCancel := context.WithCancel(ctx)
+			genCtx, genCancel := context.WithCancel(modelCtx)
 
 			// Phase 5: Check for message injection
 			isInjection := false

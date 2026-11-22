@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/auramate/auramate/internal/common"
 	"github.com/auramate/auramate/internal/config"
 	"github.com/auramate/auramate/internal/llm/models"
 	"github.com/auramate/auramate/internal/llm/provider"
@@ -24,6 +23,49 @@ func BuildProviderForAgent(agentName config.AgentName, explicitModel string, sys
 	}
 
 	return BuildProviderChain(agentName, ResolveAgentModelCandidates(agentName, explicitModel, cfg.Agents), systemPrompt, maxTokens, agentCfg.ReasoningEffort)
+}
+
+// BuildProviderForContext uses a request snapshot so concurrent accounts and
+// in-flight generations never exchange credentials when a selection changes.
+func BuildProviderForContext(ctx context.Context, agentName config.AgentName, systemPrompt string, maxTokensOverride int64) (provider.Provider, error) {
+	if config.UserEmailFromContext(ctx) == "" {
+		p, _, err := BuildProviderForAgent(agentName, "", systemPrompt, maxTokensOverride)
+		return p, err
+	}
+	model, ok := config.UserRequestModel(ctx)
+	if !ok {
+		resolved, err := config.ResolveUserRequestModel(ctx, "")
+		if err != nil {
+			return nil, err
+		}
+		model, _ = config.UserRequestModel(resolved)
+	}
+	agentCfg := config.GetAgent(agentName)
+	maxTokens := agentCfg.MaxTokens
+	if maxTokensOverride > 0 {
+		maxTokens = maxTokensOverride
+	}
+	if maxTokens <= 0 {
+		maxTokens = model.DefaultMaxTokens
+	}
+	baseURL := model.BaseURL
+	if baseURL == "" && model.Provider == models.ProviderOpenAI {
+		baseURL = "https://api.openai.com/v1"
+	}
+	if baseURL == "" && model.Provider == models.ProviderOllama {
+		baseURL = "http://localhost:11434/v1"
+	}
+	opts := []provider.ProviderClientOption{provider.WithAPIKey(model.APIKey), provider.WithModel(model), provider.WithMaxTokens(maxTokens)}
+	if baseURL != "" {
+		opts = append(opts, provider.WithOpenAIOptions(provider.WithOpenAIBaseURL(baseURL)))
+	}
+	if systemPrompt != "" {
+		opts = append(opts, provider.WithSystemMessage(systemPrompt))
+	}
+	if model.CanReason && agentCfg.ReasoningEffort != "" {
+		opts = append(opts, provider.WithOpenAIOptions(provider.WithReasoningEffort(agentCfg.ReasoningEffort)))
+	}
+	return provider.NewProvider(model.Provider, opts...)
 }
 
 func BuildProviderChain(agentName config.AgentName, modelCandidates []string, systemPrompt string, maxTokens int64, reasoningEffort string) (provider.Provider, []string, error) {
@@ -59,23 +101,23 @@ func BuildProviderChain(agentName config.AgentName, modelCandidates []string, sy
 
 func buildProviderForModelID(agentName config.AgentName, modelID string, systemPrompt string, maxTokens int64, reasoningEffort string) (provider.Provider, error) {
 	targetModel, exists := models.SupportedModels[models.ModelID(modelID)]
+	if models.ModelID(modelID) == CustomMainModelID {
+		targetModel, exists = config.CurrentMainModel()
+		if !exists {
+			return nil, errors.New("请先在设置中配置自定义模型的名称、接口地址和 API 密钥")
+		}
+	}
 	if !exists {
 		return nil, fmt.Errorf("model %s not supported", modelID)
 	}
 
-	resolvedModel, err := resolveAuraAuthProxyModel(targetModel)
-	if err != nil {
-		return nil, err
-	}
-	targetModel = resolvedModel
-
 	cfg := config.Get()
 	providerCfg, hasProvider := cfg.Providers[targetModel.Provider]
 	isCustomOrLocal := targetModel.Provider == models.ProviderOllama || targetModel.Provider == models.ProviderLocal || targetModel.Provider == models.ProviderCustom
-	if !hasProvider && !isCustomOrLocal {
+	if !hasProvider && !isCustomOrLocal && targetModel.APIKey == "" && targetModel.BaseURL == "" {
 		return nil, fmt.Errorf("provider %s not configured", targetModel.Provider)
 	}
-	if hasProvider && providerCfg.Disabled {
+	if hasProvider && providerCfg.Disabled && targetModel.APIKey == "" && targetModel.BaseURL == "" {
 		return nil, fmt.Errorf("provider %s is disabled", targetModel.Provider)
 	}
 
@@ -87,6 +129,14 @@ func buildProviderForModelID(agentName config.AgentName, modelID string, systemP
 	baseURL := providerCfg.BaseURL
 	if targetModel.BaseURL != "" {
 		baseURL = targetModel.BaseURL
+	}
+	if models.ModelID(modelID) == CustomMainModelID {
+		// Empty values are intentional: never reuse platform or provider credentials.
+		apiKey = targetModel.APIKey
+		baseURL = targetModel.BaseURL
+		if baseURL == "" && targetModel.Provider == models.ProviderOpenAI {
+			baseURL = "https://api.openai.com/v1"
+		}
 	}
 
 	effectiveMaxTokens := maxTokens
@@ -109,8 +159,6 @@ func buildProviderForModelID(agentName config.AgentName, modelID string, systemP
 		opts = append(opts, provider.WithOpenAIOptions(provider.WithOpenAIBaseURL(baseURL)))
 	}
 
-	opts = appendAuraAuthProxyProviderOptions(targetModel, opts)
-
 	if (targetModel.Provider == models.ProviderOpenAI || targetModel.Provider == models.ProviderLocal || targetModel.Provider == models.ProviderOllama || targetModel.Provider == models.ProviderCustom) && targetModel.CanReason && reasoningEffort != "" {
 		opts = append(opts, provider.WithOpenAIOptions(provider.WithReasoningEffort(reasoningEffort)))
 	}
@@ -119,68 +167,6 @@ func buildProviderForModelID(agentName config.AgentName, modelID string, systemP
 	}
 
 	return provider.NewProvider(targetModel.Provider, opts...)
-}
-
-func resolveAuraAuthProxyModel(targetModel models.Model) (models.Model, error) {
-	if !shouldUseAuraAuthProxyModel(targetModel) {
-		return targetModel, nil
-	}
-
-	token := strings.TrimSpace(config.GetAuraAuthToken())
-	if token == "" {
-		return models.Model{}, fmt.Errorf("请先登录后再使用 %s", targetModel.Name)
-	}
-
-	proxyModel := targetModel
-	proxyModel.Provider = models.ProviderCustom
-	proxyModel.APIKey = token
-	proxyModel.BaseURL = common.AuraLLMProxyURL
-	proxyModel.ContextWindow = models.AuraAuthProxyContextWindow
-	if proxyModel.APIModel == "" {
-		proxyModel.APIModel = string(proxyModel.ID)
-	}
-	if proxyModel.DefaultMaxTokens <= 0 {
-		proxyModel.DefaultMaxTokens = 8192
-	}
-
-	return proxyModel, nil
-}
-
-func appendAuraAuthProxyProviderOptions(model models.Model, opts []provider.ProviderClientOption) []provider.ProviderClientOption {
-	if !shouldUseAuraAuthProxyModel(model) {
-		return opts
-	}
-
-	machineCode := strings.TrimSpace(common.GetMachineCode())
-	if machineCode == "" {
-		return opts
-	}
-
-	return append(opts, provider.WithOpenAIOptions(
-		provider.WithOpenAIExtraQuery(map[string]string{
-			"machine_code": machineCode,
-		}),
-	))
-}
-
-func shouldUseAuraAuthProxyModel(model models.Model) bool {
-	return isAuraAuthProxyIdentifier(string(model.ID)) ||
-		isAuraAuthProxyIdentifier(model.APIModel) ||
-		isAuraAuthProxyIdentifier(model.Name)
-}
-
-func isAuraAuthProxyIdentifier(raw string) bool {
-	switch strings.ToLower(strings.TrimSpace(raw)) {
-	case strings.ToLower(string(models.DeepSeekV4Flash)),
-		strings.ToLower(string(models.DeepSeekV4Pro)),
-		strings.ToLower(string(models.KimiK26)),
-		strings.ToLower(string(models.GLM51)),
-		strings.ToLower(string(models.MiniMaxM27)),
-		strings.ToLower(string(models.DoubaoSeed20Pro)):
-		return true
-	default:
-		return false
-	}
 }
 
 type fallbackProvider struct {

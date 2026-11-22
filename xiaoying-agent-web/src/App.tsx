@@ -28,7 +28,9 @@ import { TerminalPanel } from './components/terminal/TerminalPanel'
 import { Login } from './components/auth/Login'
 import { UpdatePrompt } from './components/common/UpdatePrompt'
 import { ContextWindowButton } from './components/context/ContextWindowButton'
-import { CHAT_MODEL_OPTIONS, DEFAULT_CHAT_MODEL_SELECTION, recordResolvedChatModelObservation, resolveChatModelAttemptSequence, shouldRetryAutoModelAttempt, type ChatModelSelection } from './lib/chat-models'
+import { recordResolvedChatModelObservation, resolveChatModelAttemptSequence, shouldRetryAutoModelAttempt } from './lib/chat-models'
+import { useUserModels } from './hooks/use-user-models'
+import { ModelManager } from './components/chat/ModelManager'
 import { WordEditorPanel, type WordEditorPanelHandle } from './components/word-editor/WordEditorPanel'
 import { closeWordEditor, openWordEditor, useWordEditorSelector } from './components/word-editor/word-editor-bus'
 import {
@@ -53,7 +55,6 @@ import { useAuth } from './contexts/useAuth'
 import { Loader2 } from 'lucide-react'
 import { Logo } from './components/common/Logo'
 
-const CHAT_MODEL_STORAGE_KEY = 'auramate.chat.selected_model';
 const SUBAGENT_TOGGLE_STORAGE_KEY = 'auramate.chat.enable_subagents';
 const LEGACY_READ_ONLY_MODE_STORAGE_KEY = 'auramate.chat.read_only_mode';
 const READ_ONLY_MODE_STORAGE_KEY = 'auramate.chat.manual_read_only_mode';
@@ -185,20 +186,6 @@ const normalizeWorkspaceStateSnapshot = (data: { path?: string; workspace_path?:
         workspacePath,
         projectPath: currentPath === workspacePath ? null : currentPath,
     };
-};
-
-const readStoredChatModelSelection = (): ChatModelSelection => {
-    if (typeof window === 'undefined') {
-        return DEFAULT_CHAT_MODEL_SELECTION;
-    }
-
-    const storedValue = window.localStorage.getItem(CHAT_MODEL_STORAGE_KEY);
-    if (!storedValue) {
-        return DEFAULT_CHAT_MODEL_SELECTION;
-    }
-
-    const matchedOption = CHAT_MODEL_OPTIONS.find((option) => option.id === storedValue);
-    return matchedOption?.id ?? DEFAULT_CHAT_MODEL_SELECTION;
 };
 
 const readStoredSubagentToggle = (): boolean => {
@@ -547,7 +534,9 @@ function App() {
     const hasCodingPanel = mode === 'coding' && isCodingOverlayOpen;
     const hasWordPanel = isWordEditorOpen;
     const hasSidePanel = hasCodingPanel || hasWordPanel;
-        const [selectedModel, setSelectedModel] = useState<ChatModelSelection>(() => readStoredChatModelSelection());
+        const userModels = useUserModels(user?.email);
+        const selectedModel = userModels.selectedModel;
+        const [isModelManagerOpen, setIsModelManagerOpen] = useState(false);
         const [enableSubagents, setEnableSubagents] = useState<boolean>(() => readStoredSubagentToggle());
         const processedWordIssueKeyRef = useRef<string | null>(null);
         const wordAutoRelocateFingerprintRef = useRef<string | null>(null);
@@ -555,9 +544,7 @@ function App() {
             const projectName = projectPath ? getProjectFolderName(projectPath) : NO_PROJECT_NAME;
             const canRemoveProject = Boolean(projectPath);
 
-    useEffect(() => {
-            window.localStorage.setItem(CHAT_MODEL_STORAGE_KEY, selectedModel);
-    }, [selectedModel]);
+    useEffect(() => { setIsModelManagerOpen(false); }, [user?.email]);
 
     useEffect(() => {
             window.localStorage.setItem(SUBAGENT_TOGGLE_STORAGE_KEY, String(enableSubagents));
@@ -1010,6 +997,11 @@ function App() {
             replaceLatestAssistantTurnOnRetry?: boolean;
         } = {},
     ) => {
+        if (!selectedModel || userModels.isLoading || userModels.isSaving) {
+            toast.error('请先在右下角配置并选择模型');
+            setIsModelManagerOpen(true);
+            return { status: 'error' as const };
+        }
         const nextAttachments = files;
         const appendUserMessage = options.appendUserMessage ?? true;
         const replaceLatestAssistantTurnOnRetry = options.replaceLatestAssistantTurnOnRetry ?? appendUserMessage;
@@ -1050,9 +1042,13 @@ function App() {
         }
 
         return { status: 'error' as const };
-    }, [enableSubagents, mode, selectedModel, sendMessage]);
+    }, [enableSubagents, mode, selectedModel, sendMessage, userModels.isLoading, userModels.isSaving]);
 
     const handleSendMessage = useCallback(async (content: string, files?: File[]) => {
+        if (!selectedModel || userModels.isLoading || userModels.isSaving) {
+            setIsModelManagerOpen(true);
+            return;
+        }
         setIsManualExpanded(true);
         setInput('');
         setAttachments([]);
@@ -1060,7 +1056,7 @@ function App() {
         wordAutoRelocateFingerprintRef.current = null;
         wordAutoRelocateAttemptCountRef.current = 0;
         await sendMessageWithModelFallback(content, files ?? []);
-    }, [sendMessageWithModelFallback]);
+    }, [sendMessageWithModelFallback, selectedModel, userModels.isLoading, userModels.isSaving]);
 
     const handleReadOnlyModeChange = useCallback((enabled: boolean) => {
         setIsReadOnlyMode(enabled);
@@ -1147,7 +1143,10 @@ function App() {
           value={input}
           onChange={setInput}
           selectedModel={selectedModel}
-          onSelectedModelChange={setSelectedModel}
+          models={userModels.models}
+          modelsBusy={userModels.isLoading || userModels.isSaving}
+          onOpenModelManager={() => setIsModelManagerOpen(true)}
+          onSelectedModelChange={userModels.selectModel}
           attachments={attachments}
           onAttachmentsChange={setAttachments}
           onSendMessage={handleSendMessage}
@@ -1192,6 +1191,7 @@ function App() {
       <AudioGlow isRecording={isRecording || isProcessingWakeWord || isGenerating} analyser={analyser} />
 
       {/* Settings Modal */}
+      {user && isModelManagerOpen && <ModelManager key={user.email} controller={userModels} onClose={() => setIsModelManagerOpen(false)} />}
       {isSettingsOpen && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center pointer-events-auto">
              <SettingsModal 

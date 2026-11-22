@@ -1,10 +1,9 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { X, Save, Monitor, Brain, Terminal, Server, LogOut, User, GitBranch } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, Save, Monitor, Brain, Terminal, LogOut, User, GitBranch } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { MemoriesView } from './MemoriesView';
 import { TasksView } from './TasksView';
 import { SkillsView } from './SkillsView';
-import { ConfigView } from './ConfigView';
 import { McpConfigView } from './McpConfigView';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
@@ -13,7 +12,7 @@ import { useAuth } from '../../contexts/useAuth';
 interface SettingsModalProps {
     isOpen: boolean;
     onClose: () => void;
-    initialTab?: 'general' | 'memories' | 'tools' | 'tasks' | 'config' | 'mcp';
+    initialTab?: 'general' | 'memories' | 'tools' | 'tasks' | 'mcp';
     enableSubagents: boolean;
     onEnableSubagentsChange: (enabled: boolean) => void;
 }
@@ -28,28 +27,6 @@ const DEFAULT_SETTINGS: SettingsState = {
     enableSubagents: true,
 };
 
-function isMembershipActive(expireAt?: number): boolean {
-    if (!expireAt) {
-        return false;
-    }
-
-    return expireAt > Date.now() / 1000;
-}
-
-function formatExpireTime(expireAt?: number): string {
-    if (!expireAt || !isMembershipActive(expireAt)) {
-        return '未开通';
-    }
-
-    return new Date(expireAt * 1000).toLocaleString('zh-CN', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-    });
-}
-
 export const SettingsModal: React.FC<SettingsModalProps> = ({
     isOpen,
     onClose,
@@ -59,45 +36,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 }) => {
     const { t } = useTranslation();
     const { user, logout, refreshUser } = useAuth();
-    const [activeTab, setActiveTab] = useState<'general' | 'memories' | 'tasks' | 'tools' | 'config' | 'mcp'>(initialTab);
+    const [activeTab, setActiveTab] = useState<'general' | 'memories' | 'tasks' | 'tools' | 'mcp'>(initialTab);
     const [settings, setSettings] = useState<SettingsState>(DEFAULT_SETTINGS);
-
-    const membership = useMemo(() => {
-        const expireAt = user?.member?.expireAt;
-        const active = isMembershipActive(expireAt);
-        const isPaidMember = active && user?.member?.actualPaid === true;
-        const isTrialMember = active && user?.member?.actualPaid === false;
-
-        if (isPaidMember) {
-            return {
-                label: 'Pro 会员',
-                detail: `有效期至 ${formatExpireTime(expireAt)}`,
-                className: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
-            };
-        }
-
-        if (isTrialMember) {
-            return {
-                label: '试用会员',
-                detail: `有效期至 ${formatExpireTime(expireAt)}`,
-                className: 'bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300',
-            };
-        }
-
-        if (user?.memberUsable) {
-            return {
-                label: '会员可用',
-                detail: formatExpireTime(expireAt),
-                className: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
-            };
-        }
-
-        return {
-            label: '普通用户',
-            detail: '当前未开通会员',
-            className: 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300',
-        };
-    }, [user]);
 
     // Load settings from localStorage on mount
     useEffect(() => {
@@ -217,18 +157,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                             {t('settings.skills')}
                         </button>
                         <button
-                            onClick={() => setActiveTab('config')}
-                            className={cn(
-                                "w-full flex items-center gap-3 p-2 rounded-lg text-sm font-medium transition-colors",
-                                activeTab === 'config' 
-                                    ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300" 
-                                    : "text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800"
-                            )}
-                        >
-                            <Server className="w-4 h-4" />
-                            自定义模型配置
-                        </button>
-                        <button
                             onClick={() => setActiveTab('mcp')}
                             className={cn(
                                 "w-full flex items-center gap-3 p-2 rounded-lg text-sm font-medium transition-colors",
@@ -244,10 +172,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
                     {/* Content */}
                     <div className="flex-1 p-6 overflow-y-auto">
-                        {activeTab === 'config' && (
-                            <ConfigView />
-                        )}
-
                         {activeTab === 'mcp' && (
                             <McpConfigView />
                         )}
@@ -323,14 +247,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                                 <div className="text-xs text-zinc-500 dark:text-zinc-400">
                                                     {user?.email || ''}
                                                 </div>
-                                                <div className="mt-2 flex items-center gap-2">
-                                                    <span className={cn('inline-flex rounded-full px-2 py-0.5 text-xs font-medium', membership.className)}>
-                                                        {membership.label}
-                                                    </span>
-                                                    <span className="text-xs text-zinc-500 dark:text-zinc-400">
-                                                        {membership.detail}
-                                                    </span>
-                                                </div>
                                             </div>
                                         </div>
                                         
@@ -364,7 +280,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 </div>
 
                 {/* Footer */}
-                {activeTab !== 'config' && activeTab !== 'mcp' && activeTab !== 'tools' && (
+                {activeTab !== 'mcp' && activeTab !== 'tools' && (
                 <div className="p-4 border-t border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 flex justify-end gap-3">
                     <button
                         onClick={onClose}

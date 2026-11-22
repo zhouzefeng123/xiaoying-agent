@@ -68,6 +68,8 @@ export const Login: React.FC = () => {
         setIsLoading(true);
         try {
             await login(email.trim(), code.trim());
+        } catch {
+            // The authentication provider displays the login error.
         } finally {
             setIsLoading(false);
         }

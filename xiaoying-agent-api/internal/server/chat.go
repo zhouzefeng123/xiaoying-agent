@@ -51,12 +51,15 @@ func (s *Server) selectAgentService(agentName config.AgentName, enableSubagents 
 
 func validateRequestedChatModel(model string) error {
 	trimmed := strings.TrimSpace(model)
+	if strings.HasPrefix(trimmed, config.UserModelPrefix) {
+		return nil
+	}
 	if trimmed == "" {
 		return nil
 	}
 
 	switch trimmed {
-	case "auto", "auramate", "aura-coder", "coder", "aura-life", "life", "aura-normal", "normal":
+	case "custom-main-model", "auto", "auramate", "aura-coder", "coder", "aura-life", "life", "aura-normal", "normal":
 		return nil
 	}
 
@@ -68,6 +71,10 @@ func validateRequestedChatModel(model string) error {
 }
 
 func resolveExplicitRequestedChatModel(model string) string {
+	return string(routing.CustomMainModelID)
+}
+
+func legacyExplicitRequestedChatModel(model string) string {
 	trimmed := strings.TrimSpace(model)
 	if trimmed == "" {
 		return ""
@@ -104,6 +111,14 @@ func (s *Server) handleChatCompletions(w http.ResponseWriter, r *http.Request) {
 	if err := validateRequestedChatModel(req.Model); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
+	}
+	if config.UserEmailFromContext(r.Context()) != "" {
+		modelCtx, err := config.ResolveUserRequestModel(r.Context(), req.Model)
+		if err != nil {
+			writeLocalAuthError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		r = r.WithContext(modelCtx)
 	}
 
 	// Select Agent

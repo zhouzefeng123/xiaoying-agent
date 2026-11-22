@@ -10,6 +10,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/auramate/auramate/internal/llm/models"
 	"github.com/auramate/auramate/internal/logging"
@@ -80,15 +81,47 @@ type EmbeddingConfig struct {
 
 // MainModelConfig defines configuration for the primary LLM used by agents.
 type MainModelConfig struct {
-	Provider  models.ModelProvider `json:"provider" mapstructure:"provider"`
-	Model     string               `json:"model" mapstructure:"model"`
-	APIKey    string               `json:"apiKey,omitempty" mapstructure:"apiKey"`
-	BaseURL   string               `json:"baseURL,omitempty" mapstructure:"baseURL"`
-	MaxTokens int64                `json:"maxTokens,omitempty" mapstructure:"maxTokens"`
+	Provider            models.ModelProvider `json:"provider" mapstructure:"provider"`
+	Model               string               `json:"model" mapstructure:"model"`
+	APIKey              string               `json:"apiKey,omitempty" mapstructure:"apiKey"`
+	BaseURL             string               `json:"baseURL,omitempty" mapstructure:"baseURL"`
+	MaxTokens           int64                `json:"maxTokens,omitempty" mapstructure:"maxTokens"`
+	SupportsAttachments *bool                `json:"supportsAttachments,omitempty" mapstructure:"supportsAttachments"`
 }
 
 const mainModelOverrideID models.ModelID = "custom-main-model"
-const mainModelFixedAPIModel = "deepseek-v4-pro"
+
+var mainModelMu sync.RWMutex
+
+// CurrentMainModel returns a fresh route so saved settings apply to new requests.
+func CurrentMainModel() (models.Model, bool) {
+	mainModelMu.RLock()
+	defer mainModelMu.RUnlock()
+	if cfg == nil || !isMainModelOverrideEnabled(cfg.MainModel) {
+		return models.Model{}, false
+	}
+	if strings.TrimSpace(cfg.MainModel.Model) == "" {
+		return models.Model{}, false
+	}
+	return resolveMainModelOverride(cfg.MainModel), true
+}
+
+func ApplyMainModel(mainModel *MainModelConfig) {
+	mainModelMu.Lock()
+	defer mainModelMu.Unlock()
+	if cfg != nil {
+		if mainModel == nil {
+			cfg.MainModel = nil
+			return
+		}
+		copy := *mainModel
+		if mainModel.SupportsAttachments != nil {
+			supports := *mainModel.SupportsAttachments
+			copy.SupportsAttachments = &supports
+		}
+		cfg.MainModel = &copy
+	}
+}
 
 func isMainModelOverrideEnabled(mainModel *MainModelConfig) bool {
 	if mainModel == nil {
@@ -108,8 +141,7 @@ func resolveMainModelBaseModel(mainModel *MainModelConfig) (models.Model, bool) 
 		}
 	}
 
-	baseModel, ok := models.SupportedModels[models.ModelID(mainModelFixedAPIModel)]
-	return baseModel, ok
+	return models.Model{ContextWindow: 256000, DefaultMaxTokens: 8192}, false
 }
 
 func inferMainModelProviderFromBaseURL(baseURL string) models.ModelProvider {
@@ -126,7 +158,13 @@ func resolveMainModelProvider(mainModel *MainModelConfig, baseModel models.Model
 	if mainModel.Provider != "" {
 		return mainModel.Provider
 	}
+	if strings.TrimSpace(mainModel.BaseURL) != "" {
+		return inferMainModelProviderFromBaseURL(mainModel.BaseURL)
+	}
 	if hasBaseModel && baseModel.Provider != "" {
+		if baseModel.Provider == models.ProviderCustom && baseModel.BaseURL == "" {
+			return models.ProviderOpenAI
+		}
 		return baseModel.Provider
 	}
 	return inferMainModelProviderFromBaseURL(mainModel.BaseURL)
@@ -139,16 +177,11 @@ func applyMainModelExplicitOverrides(model models.Model, mainModel *MainModelCon
 	model.Name = "Main Model (Custom)"
 	if configuredAPIModel != "" {
 		model.APIModel = configuredAPIModel
-	} else if strings.TrimSpace(model.APIModel) == "" {
-		model.APIModel = mainModelFixedAPIModel
 	}
 
-	if mainModel.APIKey != "" {
-		model.APIKey = mainModel.APIKey
-	}
-	if mainModel.BaseURL != "" {
-		model.BaseURL = mainModel.BaseURL
-	}
+	// Credentials and endpoints always come from the user, including cleared values.
+	model.APIKey = strings.TrimSpace(mainModel.APIKey)
+	model.BaseURL = strings.TrimSpace(mainModel.BaseURL)
 	if model.DefaultMaxTokens <= 0 {
 		model.DefaultMaxTokens = 8192
 	}
@@ -157,6 +190,10 @@ func applyMainModelExplicitOverrides(model models.Model, mainModel *MainModelCon
 	}
 	if mainModel.MaxTokens > 0 {
 		model.ContextWindow = mainModel.MaxTokens
+	}
+	model.SupportsAttachments = false
+	if mainModel.SupportsAttachments != nil {
+		model.SupportsAttachments = *mainModel.SupportsAttachments
 	}
 
 	return model

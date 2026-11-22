@@ -820,21 +820,7 @@ export function useChat() {
         }
 
         if (code === 1403) {
-            const paymentUrl = new URL('https://www.auramate.cn/payment');
-            const authToken = localStorage.getItem('auth_token');
-            if (authToken && !authToken.startsWith('local_')) {
-                paymentUrl.pathname = '/login';
-                paymentUrl.searchParams.set('token', authToken);
-                paymentUrl.searchParams.set('redirect', '/payment');
-            }
-
-            return [
-                '错误 1403：资源使用超限。',
-                '',
-                '请点击下方链接开通 Pro 会员或续费：',
-                '',
-                `[开通或续费](${paymentUrl.toString()})`,
-            ].join('\n');
+            return '模型服务拒绝了请求，请检查自定义模型的接口地址、API 密钥、访问权限或服务商配额。';
         }
 
         if (!rawText) {

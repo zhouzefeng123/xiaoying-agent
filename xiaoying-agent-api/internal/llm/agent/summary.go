@@ -860,15 +860,10 @@ func (a *agent) Summarize(ctx context.Context, sessionID string) error {
 	}
 	userPrompt.WriteString("\nSummary:")
 
-	// Use summarizeProvider if available, else main provider
+	// Resolve the latest user configuration for every summary.
 	p, err := a.providerForAgentRequest(ctx, config.AgentSummarizer, a.summarizeProvider)
 	if err != nil || p == nil {
-		logging.Info("SummarizeProvider not set, falling back to main provider", "sessionID", sessionID)
-		p = a.provider
-	}
-
-	if p == nil {
-		return fmt.Errorf("no provider available for summarization")
+		return fmt.Errorf("configured model unavailable for summarization: %w", err)
 	}
 
 	// Base 120s timeout for standalone/background summaries.
@@ -1015,9 +1010,7 @@ Summaries to fuse:
 
 		p, err := a.providerForAgentRequest(ctx, config.AgentSummarizer, a.summarizeProvider)
 		if err != nil || p == nil {
-			p = a.provider
-		}
-		if p == nil {
+			logging.Warn("Configured model unavailable for tree summarization", "error", err)
 			return
 		}
 

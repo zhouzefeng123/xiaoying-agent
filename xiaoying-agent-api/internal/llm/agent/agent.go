@@ -1624,7 +1624,12 @@ func NewAgent(
 
 	agentProvider, err := createAgentProvider(agentName)
 	if err != nil {
-		return nil, err
+		// Agents can start without a global model. Every authenticated request
+		// resolves its own provider before any network operation.
+		agentProvider, err = provider.NewProvider(models.ProviderOpenAI, provider.WithAPIKey(""), provider.WithModel(models.Model{ID: routing.CustomMainModelID, Provider: models.ProviderOpenAI, ContextWindow: 256000, DefaultMaxTokens: 8192}))
+		if err != nil {
+			return nil, err
+		}
 	}
 	var summarizeProvider provider.Provider
 	// Try to create summarize provider (optional, but needed for optimization)
@@ -6543,8 +6548,8 @@ func (a *agent) rewriteQuery(ctx context.Context, msgs []message.Message, curren
 	sysPrompt := prompt.RewriteQueryPrompt
 	userPrompt := fmt.Sprintf("History:\n%s\nUser: %s\n\nRewritten:", history.String(), currentInput)
 
-	p := a.provider
-	if p == nil {
+	p, err := a.providerForAgentRequest(ctx, config.AgentNormal, a.provider)
+	if err != nil || p == nil {
 		return currentInput
 	}
 
@@ -6582,43 +6587,16 @@ func (a *agent) lazyLoadVisualProvider() error {
 }
 
 func (a *agent) getProviderForRequest(ctx context.Context, attachments []message.Attachment) (provider.Provider, error) {
-	explicitModel, hasExplicitModel := ctx.Value(tools.ModelOverrideContextKey).(string)
-	explicitModel = strings.TrimSpace(explicitModel)
-
-	if hasImageAttachment(attachments) {
-		if err := a.lazyLoadVisualProvider(); err != nil {
-			logging.Warn("Failed to load visual provider, image attachments may be ignored", "error", err)
-			return a.provider, nil
-		}
-		return a.visualProvider, nil
+	p, err := routing.BuildProviderForContext(ctx, config.AgentCoder, "", 0)
+	if err != nil {
+		return nil, err
 	}
-
-	if candidateModels, ok := ctx.Value(tools.ModelOverrideCandidatesContextKey).([]string); ok && len(candidateModels) > 0 {
-		targetProvider, providerModels, err := routing.BuildProviderChain("", candidateModels, "", 0, "")
-		if err == nil {
-			logging.Info("Using model candidate fallback chain", "models", strings.Join(providerModels, ","))
-			return targetProvider, nil
-		}
-		if hasExplicitModel && explicitModel != "" {
-			return nil, fmt.Errorf("所选模型 %q 当前不可用，已阻止回退到默认模型: %w", explicitModel, err)
-		}
-		logging.Warn("Model candidate fallback chain failed", "error", err)
+	model := p.Model()
+	if hasImageAttachment(attachments) && !model.SupportsAttachments {
+		return nil, fmt.Errorf("当前配置的模型未声明支持图片，请配置支持图片的模型或移除图片附件")
 	}
-
-	// 1. Model Override (Highest Priority - Context)
-	if hasExplicitModel && explicitModel != "" {
-		targetProvider, _, err := routing.BuildProviderChain("", []string{explicitModel}, "", 0, "")
-		if err == nil {
-			logging.Info("Using Model Override", "model", explicitModel)
-			return targetProvider, nil
-		}
-		return nil, fmt.Errorf("所选模型 %q 当前不可用，已阻止回退到默认模型: %w", explicitModel, err)
-	}
-
-	// 3. Default Provider
-	return a.provider, nil
+	return p, err
 }
-
 func hasImageAttachment(attachments []message.Attachment) bool {
 	for _, attachment := range attachments {
 		if imageAttachmentMimeType(attachment) != "" {
@@ -6636,6 +6614,15 @@ func (a *agent) err(err error) AgentEvent {
 }
 
 func (a *agent) Run(ctx context.Context, sessionID string, content string, mode string, attachments ...message.Attachment) (<-chan AgentEvent, error) {
+	if config.UserEmailFromContext(ctx) != "" {
+		if _, ok := config.UserRequestModel(ctx); !ok {
+			var err error
+			ctx, err = config.ResolveUserRequestModel(ctx, "")
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
 	ctx = context.WithValue(ctx, tools.SessionIDContextKey, sessionID)
 
 	// Use buffered channel to prevent blocking on fast token generation
@@ -9454,10 +9441,15 @@ Only output the JSON. Do not output markdown blocks.
 	// Use SendMessages instead of Complete
 	ctx = context.WithValue(ctx, tools.SessionIDContextKey, sessionID)
 	ctx = tools.SetRequestKind(ctx, "reflection_memory_extraction")
-	resp, err := a.provider.SendMessages(ctx, []message.Message{
-		{Role: message.User, Parts: []message.ContentPart{message.TextContent{Text: prompt}}},
-	}, nil)
+	reflectionProvider, providerErr := a.providerForAgentRequest(ctx, config.AgentNormal, a.provider)
+	var resp *provider.ProviderResponse
+	err := providerErr
+	if err == nil {
+		resp, err = reflectionProvider.SendMessages(ctx, []message.Message{
+			{Role: message.User, Parts: []message.ContentPart{message.TextContent{Text: prompt}}},
+		}, nil)
 
+	}
 	var (
 		mem      reflectionMemory
 		resolved bool
@@ -11322,46 +11314,9 @@ func (a *agent) Update(agentName config.AgentName, modelID models.ModelID) (mode
 }
 
 func createAgentProvider(agentName config.AgentName) (provider.Provider, error) {
-	cfg := config.Get()
-	agentCfg, ok := cfg.Agents[agentName]
-	if !ok {
-		return nil, fmt.Errorf("agent %s not found", agentName)
-	}
-	agentProvider, _, err := routing.BuildProviderForAgent(agentName, "", "", 0)
-	if err != nil {
-		configuredModel := strings.TrimSpace(string(agentCfg.Model))
-		var configuredFallbackErr error
-		if configuredModel != "" {
-			fallbackProvider, _, fallbackErr := routing.BuildProviderForAgent(agentName, configuredModel, "", 0)
-			if fallbackErr == nil {
-				logging.Warn("Auto model unavailable during agent startup, using configured model fallback", "agent", agentName, "configured_model", configuredModel, "error", err)
-				return fallbackProvider, nil
-			}
-			configuredFallbackErr = fallbackErr
-		}
-
-		customMainModelID := string(routing.CustomMainModelID)
-		if _, customMainAvailable := models.SupportedModels[routing.CustomMainModelID]; customMainAvailable && configuredModel != customMainModelID {
-			customMainProvider, _, customMainErr := routing.BuildProviderForAgent(agentName, customMainModelID, "", 0)
-			if customMainErr == nil {
-				logging.Warn("Auto and configured models unavailable during agent startup, using custom main model fallback", "agent", agentName, "configured_model", configuredModel, "custom_main_model", customMainModelID, "error", err)
-				return customMainProvider, nil
-			}
-			if configuredFallbackErr != nil {
-				return nil, fmt.Errorf("could not create provider: %v; configured fallback %s also failed: %v; custom main fallback also failed: %v", err, configuredModel, configuredFallbackErr, customMainErr)
-			}
-			return nil, fmt.Errorf("could not create provider: %v; custom main fallback also failed: %v", err, customMainErr)
-		}
-
-		if configuredFallbackErr != nil {
-			return nil, fmt.Errorf("could not create provider: %v; configured fallback %s also failed: %v", err, configuredModel, configuredFallbackErr)
-		}
-		return nil, fmt.Errorf("could not create provider: %v", err)
-	}
-
-	return agentProvider, nil
+	p, _, err := routing.BuildProviderForAgent(agentName, "", "", 0)
+	return p, err
 }
-
 func agentRequestOptions(agentName config.AgentName) (int64, string) {
 	if cfg := config.Get(); cfg != nil {
 		if agentCfg, ok := cfg.Agents[agentName]; ok {
@@ -11388,22 +11343,8 @@ func providerOverrideCandidatesFromContext(ctx context.Context) []string {
 }
 
 func (a *agent) providerForAgentRequest(ctx context.Context, agentName config.AgentName, fallback provider.Provider) (provider.Provider, error) {
-	if candidateModels := providerOverrideCandidatesFromContext(ctx); len(candidateModels) > 0 {
-		maxTokens, reasoningEffort := agentRequestOptions(agentName)
-		targetProvider, providerModels, err := routing.BuildProviderChain(agentName, candidateModels, "", maxTokens, reasoningEffort)
-		if err == nil {
-			logging.Info("Using request-scoped provider chain", "agent", string(agentName), "models", strings.Join(providerModels, ","))
-			return targetProvider, nil
-		}
-		logging.Warn("Failed to build request-scoped provider chain", "agent", string(agentName), "error", err)
-	}
-	if fallback != nil {
-		return fallback, nil
-	}
-	if agentName == "" {
-		return nil, fmt.Errorf("provider not configured")
-	}
-	return createAgentProvider(agentName)
+	p, err := routing.BuildProviderForContext(ctx, agentName, "", 0)
+	return p, err
 }
 
 // detectIntent uses the Summarizer provider (usually a fast/cheap model) to classify the user's intent.

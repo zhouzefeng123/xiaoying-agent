@@ -7,10 +7,13 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -933,6 +936,7 @@ func loadEmptyAgentTestConfig(t *testing.T) {
 
 	configDir := t.TempDir()
 	configPath := filepath.Join(configDir, ".auramate.json")
+	t.Setenv("AURAMATE_CONFIG_FILE", configPath)
 	if err := os.WriteFile(configPath, []byte("{}"), 0644); err != nil {
 		t.Fatalf("write test config: %v", err)
 	}
@@ -1166,96 +1170,47 @@ func TestPrepareConversationContextDroppedThinkingDoesNotConsumeHotProtection(t 
 	}
 }
 
-func TestGetProviderForRequestRejectsExplicitModelFallback(t *testing.T) {
+func TestGetProviderForRequestRequiresOwnConfiguration(t *testing.T) {
 	loadEmptyAgentTestConfig(t)
-
-	agentInstance := &agent{
-		provider: stubContextProvider{model: models.Model{ID: models.ModelID("custom-main-model")}},
-	}
-
-	ctx := context.WithValue(context.Background(), tools.ModelOverrideCandidatesContextKey, []string{"kimi-k2.5"})
-	ctx = context.WithValue(ctx, tools.ModelOverrideContextKey, "kimi-k2.5")
-
-	resolved, err := agentInstance.getProviderForRequest(ctx, nil)
-	if err == nil {
-		t.Fatalf("expected explicit model fallback to fail")
-	}
-	if resolved != nil {
-		t.Fatalf("expected no provider on explicit failure, got %#v", resolved)
-	}
-	if !strings.Contains(err.Error(), "已阻止回退到默认模型") {
-		t.Fatalf("expected strict fallback error, got %v", err)
+	config.ApplyMainModel(nil)
+	a := &agent{provider: stubContextProvider{model: models.Model{ID: models.DeepSeekV4Pro}}}
+	ctx := context.WithValue(context.Background(), tools.ModelOverrideContextKey, "kimi-k2.5")
+	p, err := a.getProviderForRequest(ctx, nil)
+	if err == nil || p != nil {
+		t.Fatalf("expected missing configuration error, got %v", err)
 	}
 }
 
-func TestGetProviderForRequestKeepsAutoFallback(t *testing.T) {
+func TestGetProviderForRequestUsesLatestOwnModelForAllAttachments(t *testing.T) {
 	loadEmptyAgentTestConfig(t)
-
-	defaultProvider := stubContextProvider{model: models.Model{ID: models.ModelID("custom-main-model")}}
-	agentInstance := &agent{provider: defaultProvider}
-
-	ctx := context.WithValue(context.Background(), tools.ModelOverrideCandidatesContextKey, []string{"kimi-k2.5"})
-
-	resolved, err := agentInstance.getProviderForRequest(ctx, nil)
-	if err != nil {
-		t.Fatalf("expected auto fallback to keep default provider, got %v", err)
+	a := &agent{provider: stubContextProvider{model: models.Model{ID: models.DeepSeekV4Pro}}, visualProvider: stubContextProvider{model: models.Model{ID: models.DoubaoSeed20Pro}}}
+	for _, images := range []bool{false, true} {
+		config.ApplyMainModel(&config.MainModelConfig{Provider: models.ProviderOpenAI, Model: "own-model", APIKey: "own-key", BaseURL: "http://127.0.0.1:12345/v1", SupportsAttachments: &images})
+		for _, filename := range []string{"", "notes.txt", "image.png"} {
+			ctx := context.WithValue(context.Background(), tools.ModelOverrideContextKey, "kimi-k2.5")
+			var attachments []message.Attachment
+			if filename != "" {
+				attachments = []message.Attachment{{FileName: filename}}
+			}
+			p, err := a.getProviderForRequest(ctx, attachments)
+			if filename == "image.png" && !images {
+				if err == nil || p != nil {
+					t.Fatal("unsupported image must not switch to another model")
+				}
+				continue
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			if p.Model().ID != routing.CustomMainModelID || p.Model().APIModel != "own-model" || p.Model().APIKey != "own-key" {
+				t.Fatalf("unexpected model: %s", p.Model().ID)
+			}
+		}
 	}
-	if resolved == nil {
-		t.Fatalf("expected resolved provider")
-	}
-	if resolved.Model().ID != defaultProvider.Model().ID {
-		t.Fatalf("expected default provider to remain active, got %s", resolved.Model().ID)
-	}
-}
-
-func TestGetProviderForRequestPrefersVisualProviderForAttachments(t *testing.T) {
-	agentInstance := &agent{
-		provider:       stubContextProvider{model: models.Model{ID: models.ModelID("qwen3.5-plus"), SupportsAttachments: true}},
-		visualProvider: stubContextProvider{model: models.Model{ID: models.ModelID("ark-code-latest"), SupportsAttachments: true}},
-	}
-
-	resolved, err := agentInstance.getProviderForRequest(context.Background(), []message.Attachment{{FileName: "image.png"}})
-	if err != nil {
-		t.Fatalf("expected attachment request to resolve visual provider, got %v", err)
-	}
-	if resolved == nil {
-		t.Fatalf("expected resolved provider")
-	}
-	if resolved.Model().ID != models.ModelID("ark-code-latest") {
-		t.Fatalf("expected visual provider for attachments, got %s", resolved.Model().ID)
-	}
-}
-
-func TestGetProviderForRequestPrefersVisualProviderForImageAttachmentsWithModelOverride(t *testing.T) {
-	agentInstance := &agent{
-		provider:       stubContextProvider{model: models.Model{ID: models.ModelID("qwen3.5-plus"), SupportsAttachments: true}},
-		visualProvider: stubContextProvider{model: models.Model{ID: models.DoubaoSeed20Pro, SupportsAttachments: true}},
-	}
-	ctx := context.WithValue(context.Background(), tools.ModelOverrideCandidatesContextKey, []string{"kimi-k2.5"})
-	ctx = context.WithValue(ctx, tools.ModelOverrideContextKey, "kimi-k2.5")
-
-	resolved, err := agentInstance.getProviderForRequest(ctx, []message.Attachment{{FileName: "image.png"}})
-	if err != nil {
-		t.Fatalf("expected image attachment to bypass text model override, got %v", err)
-	}
-	if resolved == nil || resolved.Model().ID != models.DoubaoSeed20Pro {
-		t.Fatalf("expected doubao visual provider for image attachment, got %#v", resolved)
-	}
-}
-
-func TestGetProviderForRequestKeepsDefaultProviderForNonImageAttachments(t *testing.T) {
-	defaultProvider := stubContextProvider{model: models.Model{ID: models.ModelID("qwen3.5-plus"), SupportsAttachments: true}}
-	agentInstance := &agent{
-		provider:       defaultProvider,
-		visualProvider: stubContextProvider{model: models.Model{ID: models.DoubaoSeed20Pro, SupportsAttachments: true}},
-	}
-
-	resolved, err := agentInstance.getProviderForRequest(context.Background(), []message.Attachment{{FileName: "notes.txt"}})
-	if err != nil {
-		t.Fatalf("expected non-image attachment to use default provider, got %v", err)
-	}
-	if resolved == nil || resolved.Model().ID != defaultProvider.Model().ID {
-		t.Fatalf("expected default provider for non-image attachment, got %#v", resolved)
+	config.ApplyMainModel(&config.MainModelConfig{Provider: models.ProviderOllama, Model: "updated-local-model"})
+	p, err := a.getProviderForRequest(context.Background(), nil)
+	if err != nil || p.Model().APIModel != "updated-local-model" {
+		t.Fatalf("latest config not used: %v", err)
 	}
 }
 
@@ -1578,6 +1533,16 @@ func TestSyncSummaryRecoveryTimeoutForModel(t *testing.T) {
 }
 
 func TestSummarizeWithTimeoutCancelsSlowSummary(t *testing.T) {
+	loadEmptyAgentTestConfig(t)
+	releaseUpstream := make(chan struct{})
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		select {
+		case <-r.Context().Done():
+		case <-releaseUpstream:
+		}
+	}))
+	defer func() { close(releaseUpstream); upstream.Close() }()
+	config.ApplyMainModel(&config.MainModelConfig{Provider: models.ProviderOpenAI, Model: "slow-summary", APIKey: "test", BaseURL: upstream.URL + "/v1"})
 	sessionID := "session-summary-timeout"
 	releaseCh := make(chan struct{})
 	messages := []message.Message{
@@ -1640,6 +1605,24 @@ func TestTriggerTreeSummarizationHonorsRunningAndCooldown(t *testing.T) {
 		startedCh: startedCh,
 		releaseCh: releaseCh,
 	}
+	loadEmptyAgentTestConfig(t)
+	var requests atomic.Int32
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests.Add(1)
+		select {
+		case startedCh <- struct{}{}:
+		default:
+		}
+		select {
+		case <-releaseCh:
+		case <-r.Context().Done():
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte("{\"id\":\"test\",\"object\":\"chat.completion\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"fused milestone summary\"},\"finish_reason\":\"stop\"}]}"))
+	}))
+	defer upstream.Close()
+	config.ApplyMainModel(&config.MainModelConfig{Provider: models.ProviderOpenAI, Model: "own-summary-model", APIKey: "test", BaseURL: upstream.URL + "/v1"})
 	a := &agent{
 		messages:          newOrderedMessageService(msgs...),
 		sessions:          newMultiSessionTestService(sessions...),
@@ -1659,10 +1642,10 @@ func TestTriggerTreeSummarizationHonorsRunningAndCooldown(t *testing.T) {
 	close(releaseCh)
 
 	deadline := time.After(2 * time.Second)
-	for provider.requestCount() != 1 {
+	for int(requests.Load()) != 1 {
 		select {
 		case <-deadline:
-			t.Fatalf("expected exactly one tree summary request while running, got %d", provider.requestCount())
+			t.Fatalf("expected exactly one tree summary request while running, got %d", int(requests.Load()))
 		default:
 			time.Sleep(10 * time.Millisecond)
 		}
@@ -1675,8 +1658,8 @@ func TestTriggerTreeSummarizationHonorsRunningAndCooldown(t *testing.T) {
 	case <-time.After(150 * time.Millisecond):
 	}
 
-	if provider.requestCount() != 1 {
-		t.Fatalf("expected cooldown to keep tree summary request count at 1, got %d", provider.requestCount())
+	if int(requests.Load()) != 1 {
+		t.Fatalf("expected cooldown to keep tree summary request count at 1, got %d", int(requests.Load()))
 	}
 }
 

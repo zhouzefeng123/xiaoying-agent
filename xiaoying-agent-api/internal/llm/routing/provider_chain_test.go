@@ -7,12 +7,14 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/auramate/auramate/internal/common"
+	"encoding/json"
 	"github.com/auramate/auramate/internal/config"
 	"github.com/auramate/auramate/internal/llm/models"
 	"github.com/auramate/auramate/internal/llm/provider"
 	llmtools "github.com/auramate/auramate/internal/llm/tools"
 	"github.com/auramate/auramate/internal/message"
+	"net/http"
+	"net/http/httptest"
 )
 
 type stubProvider struct {
@@ -117,117 +119,75 @@ func TestFallbackProviderStopsAfterSubstantiveOutput(t *testing.T) {
 	}
 }
 
-func TestResolveAuraAuthProxyModelRoutesVolcModelViaAuraProxy(t *testing.T) {
-	loadRoutingTestConfigWithAuraToken(t, "test-aura-token")
-
-	resolved, err := resolveAuraAuthProxyModel(models.Model{
-		ID:       models.DeepSeekV4Flash,
-		Name:     "deepseek-v4-flash",
-		Provider: models.ProviderOpenAI,
-		APIModel: string(models.DeepSeekV4Flash),
-		APIKey:   "direct-key",
-		BaseURL:  "https://ark.example.com/v1",
-	})
+func TestConfiguredModelUsesOwnEndpointAndKeyWithoutMembership(t *testing.T) {
+	var seen bool
+	expectedModel, expectedAuthorization := string(models.DeepSeekV4Pro), "Bearer own-key"
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		seen = true
+		if r.URL.Path != "/v1/chat/completions" {
+			t.Errorf("unexpected path: %s", r.URL.Path)
+		}
+		if r.Header.Get("Authorization") != expectedAuthorization {
+			t.Error("own API key was not used")
+		}
+		if r.URL.Query().Get("machine_code") != "" {
+			t.Error("unexpected platform machine code")
+		}
+		var body struct {
+			Model string `json:"model"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Error(err)
+		}
+		if body.Model != expectedModel {
+			t.Errorf("model name changed: %s", body.Model)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"id":"test","object":"chat.completion","model":"deepseek-v4-pro","choices":[{"index":0,"message":{"role":"assistant","content":"own model works"},"finish_reason":"stop"}],"usage":{"prompt_tokens":1,"completion_tokens":3,"total_tokens":4}}`))
+	}))
+	defer upstream.Close()
+	dir := t.TempDir()
+	path := filepath.Join(dir, ".auramate.json")
+	payload, _ := json.Marshal(map[string]any{"main_model": map[string]any{"provider": "openai", "model": string(models.DeepSeekV4Pro), "apiKey": "own-key", "baseURL": upstream.URL + "/v1"}})
+	if err := os.WriteFile(path, payload, 0600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("AURAMATE_CONFIG_FILE", path)
+	if _, err := config.Load(dir, false); err != nil {
+		t.Fatal(err)
+	}
+	p, _, err := BuildProviderForAgent(config.AgentNormal, "", "", 0)
 	if err != nil {
-		t.Fatalf("resolveAuraAuthProxyModel returned error: %v", err)
+		t.Fatal(err)
 	}
-	if resolved.Provider != models.ProviderCustom {
-		t.Fatalf("expected volc route to use custom proxy provider, got %s", resolved.Provider)
-	}
-	if resolved.APIKey != "test-aura-token" {
-		t.Fatalf("expected aura token to replace direct api key, got %q", resolved.APIKey)
-	}
-	if resolved.BaseURL != common.AuraLLMProxyURL {
-		t.Fatalf("expected aura auth proxy URL, got %q", resolved.BaseURL)
-	}
-}
-
-func TestResolveAuraAuthProxyModelRoutesDoubaoVisionModelViaAuraProxy(t *testing.T) {
-	loadRoutingTestConfigWithAuraToken(t, "test-aura-token")
-
-	resolved, err := resolveAuraAuthProxyModel(models.Model{
-		ID:       models.DoubaoSeed20Pro,
-		Name:     "Doubao Seed 2.0 Pro",
-		Provider: models.ProviderCustom,
-		APIModel: string(models.DoubaoSeed20Pro),
-	})
+	response, err := p.SendMessages(context.Background(), []message.Message{{Role: message.User, Parts: []message.ContentPart{message.TextContent{Text: "hello"}}}}, nil)
 	if err != nil {
-		t.Fatalf("resolveAuraAuthProxyModel returned error: %v", err)
+		t.Fatal(err)
 	}
-	if resolved.Provider != models.ProviderCustom {
-		t.Fatalf("expected doubao route to use custom proxy provider, got %s", resolved.Provider)
+	if !seen || response.Content != "own model works" {
+		t.Fatalf("unexpected response: %+v", response)
 	}
-	if resolved.APIKey != "test-aura-token" {
-		t.Fatalf("expected aura token to be applied, got %q", resolved.APIKey)
-	}
-	if resolved.BaseURL != common.AuraLLMProxyURL {
-		t.Fatalf("expected aura auth proxy URL, got %q", resolved.BaseURL)
-	}
-}
-
-func TestResolveAuraAuthProxyModelRoutesCustomMainVolcModelViaAuraProxy(t *testing.T) {
-	loadRoutingTestConfigWithAuraToken(t, "test-aura-token")
-
-	resolved, err := resolveAuraAuthProxyModel(models.Model{
-		ID:       CustomMainModelID,
-		Name:     "Main Model (Custom)",
-		Provider: models.ProviderOpenAI,
-		APIModel: string(models.DeepSeekV4Pro),
-	})
+	config.ApplyMainModel(&config.MainModelConfig{Provider: models.ProviderCustom, Model: "updated-model", APIKey: "updated-key", BaseURL: upstream.URL + "/v1"})
+	next, _, err := BuildProviderForAgent(config.AgentTask, "", "", 0)
 	if err != nil {
-		t.Fatalf("resolveAuraAuthProxyModel returned error: %v", err)
+		t.Fatal(err)
 	}
-	if resolved.Provider != models.ProviderCustom {
-		t.Fatalf("expected custom-main-model volc route to use custom proxy provider, got %s", resolved.Provider)
+	if next.Model().APIModel != "updated-model" || next.Model().APIKey != "updated-key" {
+		t.Fatal("new requests did not use saved configuration")
 	}
-	if resolved.APIKey != "test-aura-token" {
-		t.Fatalf("expected aura token to be applied, got %q", resolved.APIKey)
-	}
-	if resolved.BaseURL != common.AuraLLMProxyURL {
-		t.Fatalf("expected aura auth proxy URL, got %q", resolved.BaseURL)
-	}
-	if resolved.APIModel != string(models.DeepSeekV4Pro) {
-		t.Fatalf("expected volc api model to be preserved, got %q", resolved.APIModel)
-	}
-}
-
-func TestResolveAuraAuthProxyModelRejectsVolcModelWithoutAuraToken(t *testing.T) {
-	loadRoutingTestConfigWithAuraToken(t, "")
-
-	resolved, err := resolveAuraAuthProxyModel(models.Model{
-		ID:       models.GLM51,
-		Name:     "glm-5.1",
-		Provider: models.ProviderCustom,
-		APIModel: string(models.GLM51),
-	})
-	if err == nil {
-		t.Fatalf("expected missing aura token to reject volc route, got resolved=%+v", resolved)
-	}
-	if resolved != (models.Model{}) {
-		t.Fatalf("expected zero-value model on rejection, got %+v", resolved)
-	}
-	if err.Error() != "请先登录后再使用 glm-5.1" {
-		t.Fatalf("unexpected error message: %v", err)
-	}
-}
-
-func loadRoutingTestConfigWithAuraToken(t *testing.T, token string) {
-	t.Helper()
-
-	configDir := t.TempDir()
-	configPath := filepath.Join(configDir, ".auramate.json")
-	content := "{\n  \"auraAuth\": {\n    \"token\": \"" + token + "\"\n  }\n}"
-	if err := os.WriteFile(configPath, []byte(content), 0644); err != nil {
-		t.Fatalf("write test config: %v", err)
-	}
-	t.Setenv("AURAMATE_CONFIG_FILE", configPath)
-	loaded, err := config.Load(configDir, false)
+	// A keyless local server must use its configured port and ignore global keys.
+	t.Setenv("OPENAI_API_KEY", "unrelated-environment-key")
+	expectedModel, expectedAuthorization = "own-local-model", ""
+	config.ApplyMainModel(&config.MainModelConfig{Provider: models.ProviderOllama, Model: expectedModel, BaseURL: upstream.URL + "/v1"})
+	local, _, err := BuildProviderForAgent(config.AgentNormal, "", "", 0)
 	if err != nil {
-		t.Fatalf("load test config: %v", err)
+		t.Fatal(err)
 	}
-	if loaded.AuraAuth == nil {
-		loaded.AuraAuth = &config.AuraAuthConfig{Token: token}
-		return
+	if _, err := local.SendMessages(context.Background(), []message.Message{{Role: message.User, Parts: []message.ContentPart{message.TextContent{Text: "hello"}}}}, nil); err != nil {
+		t.Fatal(err)
 	}
-	loaded.AuraAuth.Token = token
+	config.ApplyMainModel(nil)
+	if _, _, err := BuildProviderForAgent(config.AgentNormal, "", "", 0); err == nil {
+		t.Fatal("missing settings must not fall back to a platform model")
+	}
 }

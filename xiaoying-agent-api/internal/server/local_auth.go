@@ -292,11 +292,6 @@ func clearLocalAuthCookie(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func captchaParamPresent(raw json.RawMessage) bool {
-	trimmed := strings.TrimSpace(string(raw))
-	return trimmed != "" && trimmed != "null" && trimmed != `""`
-}
-
 func sendLocalSMTPMail(cfg localSMTPConfig, to, subject, body string) error {
 	address := net.JoinHostPort(cfg.Host, strconv.Itoa(cfg.Port))
 	dialer := &net.Dialer{Timeout: 15 * time.Second}
@@ -396,6 +391,12 @@ func (s *Server) handleLocalSendEmailCode(w http.ResponseWriter, rawEmail string
 		return
 	}
 
+	code, err := generateLocalCode()
+	if err != nil {
+		writeLocalAuthError(w, http.StatusInternalServerError, "生成验证码失败")
+		return
+	}
+
 	now := time.Now()
 	localAuthStore.Lock()
 	if existing, ok := localAuthStore.codes[email]; ok && now.Sub(existing.SentAt) < localCodeCooldown {
@@ -403,15 +404,6 @@ func (s *Server) handleLocalSendEmailCode(w http.ResponseWriter, rawEmail string
 		writeLocalAuthError(w, http.StatusTooManyRequests, "发送过于频繁，请稍后再试")
 		return
 	}
-	localAuthStore.Unlock()
-
-	code, err := generateLocalCode()
-	if err != nil {
-		writeLocalAuthError(w, http.StatusInternalServerError, "生成验证码失败")
-		return
-	}
-
-	localAuthStore.Lock()
 	localAuthStore.codes[email] = localEmailCode{
 		Code:      code,
 		ExpiresAt: now.Add(localCodeTTL),
@@ -423,7 +415,9 @@ func (s *Server) handleLocalSendEmailCode(w http.ResponseWriter, rawEmail string
 	body := fmt.Sprintf("您的 XiaoYing 登录验证码是：%s\n\n验证码 %d 分钟内有效。如果这不是您本人的操作，请忽略这封邮件。\n", code, int(localCodeTTL.Minutes()))
 	if err := sendLocalSMTPMail(smtpCfg, email, subject, body); err != nil {
 		localAuthStore.Lock()
-		delete(localAuthStore.codes, email)
+		if current, ok := localAuthStore.codes[email]; ok && current.SentAt.Equal(now) {
+			delete(localAuthStore.codes, email)
+		}
 		localAuthStore.Unlock()
 		logging.Error("Failed to send local login code", "email", maskLocalEmail(email), "error", err)
 		writeLocalAuthError(w, http.StatusBadGateway, "验证码邮件发送失败，请检查 SMTP 配置")
@@ -488,20 +482,20 @@ func (s *Server) handleLocalLogin(w http.ResponseWriter, r *http.Request, body [
 		return true
 	}
 	localAuthStore.codes[email] = entry
-	localAuthStore.Unlock()
 
 	if subtle.ConstantTimeCompare([]byte(entry.Code), []byte(code)) != 1 {
+		localAuthStore.Unlock()
 		writeLocalAuthError(w, http.StatusBadRequest, "验证码错误")
 		return true
 	}
 
 	token, err := generateLocalSessionToken()
 	if err != nil {
+		localAuthStore.Unlock()
 		writeLocalAuthError(w, http.StatusInternalServerError, "创建登录会话失败")
 		return true
 	}
 
-	localAuthStore.Lock()
 	delete(localAuthStore.codes, email)
 	localAuthStore.sessions[token] = localAuthSession{
 		Email:     email,

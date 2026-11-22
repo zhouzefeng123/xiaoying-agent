@@ -312,6 +312,14 @@ func (s *Server) handleSessionContextStats(w http.ResponseWriter, r *http.Reques
 	}
 
 	model := strings.TrimSpace(query.Get("model"))
+	if config.UserEmailFromContext(ctx) != "" {
+		var err error
+		ctx, err = config.ResolveUserRequestModel(ctx, model)
+		if err != nil {
+			writeLocalAuthError(w, 400, err.Error())
+			return
+		}
+	}
 	if err := validateRequestedChatModel(model); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return

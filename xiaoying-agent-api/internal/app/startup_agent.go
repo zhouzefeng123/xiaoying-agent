@@ -21,7 +21,7 @@ func createStartupAgent(agentName config.AgentName, svc agent.Service, err error
 		return nil, err
 	}
 
-	logging.Warn("Agent unavailable during startup; backend will retry after login", "agent", agentName, "error", err)
+	logging.Warn("Agent unavailable during startup; backend will retry after model configuration", "agent", agentName, "error", err)
 	return &deferredAgent{
 		agentName: agentName,
 		init:      factory,
@@ -32,7 +32,7 @@ func isRecoverableStartupAgentError(err error) bool {
 	if err == nil {
 		return false
 	}
-	return strings.Contains(err.Error(), "请先登录后再使用")
+	return strings.Contains(err.Error(), "请先登录后再使用") || strings.Contains(err.Error(), "请先在设置中配置自定义模型")
 }
 
 type deferredAgent struct {

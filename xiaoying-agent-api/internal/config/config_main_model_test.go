@@ -6,7 +6,7 @@ import (
 	"github.com/auramate/auramate/internal/llm/models"
 )
 
-func TestResolveMainModelOverrideInheritsConfiguredModelRoute(t *testing.T) {
+func TestResolveMainModelOverrideNeverInheritsCredentials(t *testing.T) {
 	originalModel, existed := models.SupportedModels[models.ModelID("doubao-direct")]
 	models.SupportedModels[models.ModelID("doubao-direct")] = models.Model{
 		ID:                  models.ModelID("doubao-direct"),
@@ -38,14 +38,14 @@ func TestResolveMainModelOverrideInheritsConfiguredModelRoute(t *testing.T) {
 	if resolved.Provider != models.ProviderOpenAI {
 		t.Fatalf("expected provider to inherit openai, got %s", resolved.Provider)
 	}
-	if resolved.APIKey != "direct-key" {
-		t.Fatalf("expected api key to inherit direct model route, got %q", resolved.APIKey)
+	if resolved.APIKey != "" {
+		t.Fatalf("expected cleared api key, got %q", resolved.APIKey)
 	}
-	if resolved.BaseURL != "https://ark.example.com/v1" {
-		t.Fatalf("expected base url to inherit direct model route, got %q", resolved.BaseURL)
+	if resolved.BaseURL != "" {
+		t.Fatalf("expected cleared base url, got %q", resolved.BaseURL)
 	}
-	if !resolved.SupportsAttachments {
-		t.Fatalf("expected attachments capability to be inherited")
+	if resolved.SupportsAttachments {
+		t.Fatalf("expected images to require explicit opt-in")
 	}
 	if resolved.ContextWindow != 256000 {
 		t.Fatalf("expected context window override, got %d", resolved.ContextWindow)
@@ -100,8 +100,8 @@ func TestResolveMainModelOverrideInfersProviderWithoutBaseModel(t *testing.T) {
 		BaseURL: "http://localhost:11434/v1",
 	})
 
-	if resolved.Provider != models.ProviderCustom {
-		t.Fatalf("expected unknown configured model to keep custom provider from fallback route, got %s", resolved.Provider)
+	if resolved.Provider != models.ProviderOllama {
+		t.Fatalf("expected local URL to select Ollama, got %s", resolved.Provider)
 	}
 	if resolved.APIModel != "Qwen3.6-35B-A3B" {
 		t.Fatalf("expected api model to use configured model name, got %q", resolved.APIModel)

@@ -1,14 +1,18 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { Send, Paperclip, X, Square, Mic, MicOff, Loader2, ChevronDown, FolderOpen, FileText, File, TerminalSquare, Code2, Cpu, ShieldCheck } from 'lucide-react';
+import { Send, Paperclip, X, Square, Mic, MicOff, Loader2, ChevronDown, FolderOpen, FileText, File, TerminalSquare, Code2, Cpu, ShieldCheck, Settings2, Check } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { ChatCard } from './MessageBubble';
-import { CHAT_MODEL_OPTIONS, type ChatModelSelection, getChatModelOption } from '../../lib/chat-models';
+import type { ChatModelSelection } from '../../lib/chat-models';
+import type { UserModel } from '../../hooks/use-user-models';
 
 interface ChatInputProps {
     variant?: 'chat' | 'welcome';
     value: string;
     onChange: (value: string) => void;
     selectedModel: ChatModelSelection;
+    models: UserModel[];
+    modelsBusy: boolean;
+    onOpenModelManager: () => void;
     onSelectedModelChange: (model: ChatModelSelection) => void;
     attachments: File[];
     onAttachmentsChange: (files: File[]) => void;
@@ -38,6 +42,9 @@ const ChatInputComponent: React.FC<ChatInputProps> = ({
     value,
     onChange,
     selectedModel,
+    models,
+    modelsBusy,
+    onOpenModelManager,
     onSelectedModelChange,
     attachments,
     onAttachmentsChange,
@@ -63,20 +70,6 @@ const ChatInputComponent: React.FC<ChatInputProps> = ({
     const [isDragOver, setIsDragOver] = useState(false);
     const [isModelMenuOpen, setIsModelMenuOpen] = useState(false);
     const modelMenuRef = useRef<HTMLDivElement>(null);
-    const [customModelName, setCustomModelName] = useState<string>('');
-
-    useEffect(() => {
-        let cancelled = false;
-        fetch('/v1/config')
-            .then((res) => res.ok ? res.json() : null)
-            .then((data) => {
-                if (!cancelled && data?.main_model?.model) {
-                    setCustomModelName(data.main_model.model.trim());
-                }
-            })
-            .catch(() => {});
-        return () => { cancelled = true; };
-    }, []);
 
     // Store file paths received from preload's drop interceptor
     const filePathMapRef = useRef<Map<string, string>>(new Map());
@@ -150,6 +143,8 @@ const ChatInputComponent: React.FC<ChatInputProps> = ({
     const handleSend = () => {
         if ((!value.trim() && attachments.length === 0) || disabled || isTranscribing) return;
         
+        if (modelsBusy) return;
+        if (!selectedModel) { onOpenModelManager(); return; }
         onSendMessage(value, attachments);
         // Clearing is handled by parent
         
@@ -311,7 +306,7 @@ const ChatInputComponent: React.FC<ChatInputProps> = ({
     };
 
     const showStopButton = isGenerating && !value.trim() && attachments.length === 0;
-    const selectedModelOption = getChatModelOption(selectedModel);
+    const selectedModelOption = models.find(model => model.id === selectedModel);
 
     return (
         <div 
@@ -418,59 +413,6 @@ const ChatInputComponent: React.FC<ChatInputProps> = ({
                         }
                     }}
                 >
-                    <div className="relative shrink-0 self-center" ref={modelMenuRef}>
-                        <button
-                            onClick={() => setIsModelMenuOpen((open) => !open)}
-                            className={cn(
-                                "flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-medium",
-                                isModelMenuOpen
-                                    ? "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-500/40 dark:bg-blue-500/10 dark:text-blue-300"
-                                    : "border-zinc-200 bg-white text-zinc-600 hover:border-zinc-300 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900/80 dark:text-zinc-300 dark:hover:border-zinc-600 dark:hover:bg-zinc-800"
-                            )}
-                            title={`当前模型：${selectedModelOption.label}`}
-                        >
-                            <span className="max-w-[96px] truncate">{selectedModelOption.label}</span>
-                            <ChevronDown className={cn("h-4 w-4", isModelMenuOpen && "rotate-180")} />
-                        </button>
-
-                        {isModelMenuOpen && (
-                            <div className="absolute bottom-full left-0 z-[120] mb-2 w-72 overflow-hidden rounded-xl border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900">
-                                <div className="border-b border-zinc-100 px-3 py-2 text-xs font-medium text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
-                                    选择对话模型
-                                </div>
-                                <div className="p-1.5">
-                                    {CHAT_MODEL_OPTIONS.map((option) => {
-                                        const isActive = option.id === selectedModel;
-                                        return (
-                                            <button
-                                                key={option.id}
-                                                onClick={() => {
-                                                    onSelectedModelChange(option.id);
-                                                    setIsModelMenuOpen(false);
-                                                }}
-                                                className={cn(
-                                                    "flex w-full flex-col items-start gap-1 rounded-lg px-3 py-2 text-left",
-                                                    isActive
-                                                        ? "bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-300"
-                                                        : "text-zinc-700 hover:bg-zinc-50 dark:text-zinc-200 dark:hover:bg-zinc-800"
-                                                )}
-                                            >
-                                                <span className="text-sm font-medium">{option.label}</span>
-                                                {option.id === 'custom-main-model' ? (
-                                                    customModelName ? (
-                                                        <span className="text-xs text-zinc-500 dark:text-zinc-400">{customModelName}</span>
-                                                    ) : null
-                                                ) : option.description ? (
-                                                    <span className="text-xs text-zinc-500 dark:text-zinc-400">{option.description}</span>
-                                                ) : null}
-                                            </button>
-                                        );
-                                    })}
-                                </div>
-                            </div>
-                        )}
-                    </div>
-
                     {/* Attachment Button */}
                     <input 
                         type="file" 
@@ -542,6 +484,7 @@ const ChatInputComponent: React.FC<ChatInputProps> = ({
                         onKeyDown={handleKeyDown}
                         onPaste={handlePaste}
                         placeholder={
+                            !selectedModel ? "请先在右下角添加模型，再开始对话" :
                             isTranscribing ? "正在转换文字..." : 
                             isRecording ? "正在聆听..." : 
                             isGenerating ? "正在思考..." : 
@@ -557,7 +500,7 @@ const ChatInputComponent: React.FC<ChatInputProps> = ({
                     {/* Send / Stop Button */}
                     <button
                         onClick={showStopButton ? onStop : handleSend}
-                        disabled={(!value.trim() && attachments.length === 0 && !isGenerating) || disabled}
+                        disabled={!showStopButton && ((!value.trim() && attachments.length === 0) || disabled || modelsBusy || !selectedModel)}
                         aria-label={showStopButton ? "停止生成" : "发送消息"}
                         className={cn(
                             "shrink-0 self-center rounded-lg p-1.5",
@@ -644,7 +587,22 @@ const ChatInputComponent: React.FC<ChatInputProps> = ({
                         </button>
                     </div>
 
-                    <div className="flex items-center gap-2">
+                    <div className="flex min-w-0 items-center gap-2">
+                        <div className="relative min-w-0" ref={modelMenuRef}>
+                            <button type="button" aria-label="选择对话模型" aria-expanded={isModelMenuOpen} disabled={modelsBusy} onClick={() => models.length ? setIsModelMenuOpen(!isModelMenuOpen) : onOpenModelManager()} className="flex max-w-[180px] items-center gap-1.5 rounded-lg border border-zinc-200 bg-white/80 px-2.5 py-2 text-xs text-zinc-600 hover:bg-zinc-50 disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300">
+                                {modelsBusy ? <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" /> : <Cpu className="h-3.5 w-3.5 shrink-0" />}
+                                <span className="truncate">{modelsBusy ? '加载中…' : selectedModelOption?.name || '配置模型'}</span>
+                                {!!models.length && <ChevronDown className="h-3.5 w-3.5 shrink-0" />}
+                            </button>
+                            {isModelMenuOpen && <div className="absolute bottom-full right-0 z-[120] mb-2 w-72 overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-xl dark:border-zinc-700 dark:bg-zinc-900">
+                                <div className="border-b border-zinc-100 px-4 py-3 text-xs text-zinc-500 dark:border-zinc-800">我的模型 · {models.length}</div>
+                                <div className="max-h-64 overflow-y-auto p-1.5">{models.map(model => <button key={model.id} type="button" disabled={modelsBusy} onClick={() => { onSelectedModelChange(model.id); setIsModelMenuOpen(false); }} className={cn('flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left', model.id === selectedModel ? 'bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-300' : 'text-zinc-700 hover:bg-zinc-50 dark:text-zinc-200 dark:hover:bg-zinc-800')}>
+                                    <span className="min-w-0 flex-1"><span className="block truncate text-sm font-medium">{model.name}</span><span className="mt-1 block truncate text-xs text-zinc-400">{model.model}</span></span>{model.id === selectedModel && <Check className="h-4 w-4 shrink-0" />}
+                                </button>)}</div>
+                                <button type="button" onClick={() => {setIsModelMenuOpen(false); onOpenModelManager();}} className="flex w-full items-center gap-2 border-t border-zinc-100 px-4 py-3 text-xs text-blue-600 hover:bg-blue-50 dark:border-zinc-800 dark:hover:bg-zinc-800"><Settings2 className="h-3.5 w-3.5" />添加 / 管理模型</button>
+                            </div>}
+                        </div>
+                        <button type="button" aria-label="模型配置" title="添加、编辑和删除模型" onClick={onOpenModelManager} className="shrink-0 rounded-lg p-2 text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800"><Settings2 className="h-4 w-4" /></button>
                         {isTranscribing && (
                             <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800">
                                 <Loader2 className="w-3 h-3 animate-spin" />

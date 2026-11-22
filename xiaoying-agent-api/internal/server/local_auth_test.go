@@ -50,28 +50,6 @@ func TestNormalizeLocalEmail(t *testing.T) {
 	}
 }
 
-func TestCaptchaParamPresent(t *testing.T) {
-	tests := []struct {
-		name string
-		raw  string
-		want bool
-	}{
-		{name: "empty", raw: ``, want: false},
-		{name: "null", raw: `null`, want: false},
-		{name: "empty string", raw: `""`, want: false},
-		{name: "value", raw: `"captcha-value"`, want: true},
-		{name: "object", raw: `{"x":1}`, want: true},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := captchaParamPresent(json.RawMessage(tt.raw)); got != tt.want {
-				t.Fatalf("got %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
 func TestHandleLocalLoginAndCurrent(t *testing.T) {
 	t.Setenv("AURAMATE_AUTH_ALLOWED_EMAILS", "user@example.com")
 	resetLocalAuthStore()
