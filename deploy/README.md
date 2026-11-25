@@ -109,8 +109,7 @@ Basic Auth 或 IP 白名单。
 容器里，理论上可以通过绝对路径读取其他用户的工作区。如果需要防止恶意用户越权，
 需要为每个用户使用独立容器/命名空间和独立数据库，这是后续的沙箱化工作。
 
-如果希望每次执行命令/改文件前都在网页里确认，可以把
-`deploy/config/.auramate.json` 里的 `security` 改成：
+命令执行、文件修改等有副作用的工具默认需要网页确认，只读和检查类工具可自动运行。配置示例如下：
 
 ```json
 {
@@ -119,6 +118,8 @@ Basic Auth 或 IP 白名单。
   }
 }
 ```
+
+`security.allowAllTools` defaults to `false`, so tools that modify files, run commands, or otherwise change state require approval. The `AURAMATE_ALLOW_ALL_TOOLS=true` environment variable bypasses all tool approvals and should only be used temporarily in a trusted, single-user local environment; do not enable it for multi-user or public deployments.
 
 生产环境也建议把顶层 `"debug": true` 改成 `"debug": false`。
 

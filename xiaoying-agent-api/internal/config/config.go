@@ -783,10 +783,8 @@ func setDefaults(debug bool) {
 	viper.SetDefault("tui.theme", "auramate")
 	viper.SetDefault("autoCompact", true)
 
-	// Security defaults
-	// Backward compatible default: allow all tools (matches current permission service behavior).
-	// For production deployments, set `security.allowAllTools=false`.
-	viper.SetDefault("security.allowAllTools", true)
+	// Require approval for tools that can change state unless explicitly overridden.
+	viper.SetDefault("security.allowAllTools", false)
 
 	// LLM runtime defaults (conservative)
 	// Context window budgeting cap: default 256k tokens for stability; can be raised for 1M models.

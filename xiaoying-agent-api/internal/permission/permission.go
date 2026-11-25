@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"slices"
 	"sync"
+	"time"
 
 	"github.com/auramate/auramate/internal/config"
 	"github.com/auramate/auramate/internal/pubsub"
@@ -13,6 +14,8 @@ import (
 )
 
 var ErrorPermissionDenied = errors.New("permission denied")
+
+const approvalTimeout = 5 * time.Minute
 
 type CreatePermissionRequest struct {
 	SessionID   string `json:"session_id"`
@@ -50,25 +53,41 @@ type permissionService struct {
 	autoApproveSessions []string
 }
 
+type pendingPermission struct {
+	sessionID string
+	response  chan bool
+}
+
 func (s *permissionService) GrantPersistant(permission PermissionRequest) {
 	respCh, ok := s.pendingRequests.Load(permission.ID)
-	if ok {
-		respCh.(chan bool) <- true
+	if !ok {
+		return
 	}
+	pending := respCh.(pendingPermission)
+	if pending.sessionID != permission.SessionID {
+		return
+	}
+	pending.response <- true
 	s.sessionPermissions = append(s.sessionPermissions, permission)
 }
 
 func (s *permissionService) Grant(permission PermissionRequest) {
 	respCh, ok := s.pendingRequests.Load(permission.ID)
 	if ok {
-		respCh.(chan bool) <- true
+		pending := respCh.(pendingPermission)
+		if pending.sessionID == permission.SessionID {
+			pending.response <- true
+		}
 	}
 }
 
 func (s *permissionService) Deny(permission PermissionRequest) {
 	respCh, ok := s.pendingRequests.Load(permission.ID)
 	if ok {
-		respCh.(chan bool) <- false
+		pending := respCh.(pendingPermission)
+		if pending.sessionID == permission.SessionID {
+			pending.response <- false
+		}
 	}
 }
 
@@ -78,7 +97,7 @@ func (s *permissionService) Request(opts CreatePermissionRequest) bool {
 		return true
 	}
 
-	// Config switch (backward-compatible default is true)
+	// Explicit opt-in for trusted environments only.
 	if cfg := config.Get(); cfg != nil && cfg.Security.AllowAllTools {
 		return true
 	}
@@ -119,14 +138,21 @@ func (s *permissionService) Request(opts CreatePermissionRequest) bool {
 
 	respCh := make(chan bool, 1)
 
-	s.pendingRequests.Store(permission.ID, respCh)
+	s.pendingRequests.Store(permission.ID, pendingPermission{
+		sessionID: permission.SessionID,
+		response:  respCh,
+	})
 	defer s.pendingRequests.Delete(permission.ID)
 
 	s.Publish(pubsub.CreatedEvent, permission)
 
-	// Wait for the response (UI should grant/deny)
-	resp := <-respCh
-	return resp
+	// Fail closed if no authorized client is available to answer.
+	select {
+	case resp := <-respCh:
+		return resp
+	case <-time.After(approvalTimeout):
+		return false
+	}
 }
 
 func (s *permissionService) AutoApproveSession(sessionID string) {
