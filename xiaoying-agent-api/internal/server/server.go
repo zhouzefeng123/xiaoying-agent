@@ -1947,6 +1947,9 @@ func (s *Server) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 					return
 				}
 				perm := event.Payload
+				if strings.TrimSpace(perm.SessionID) == "" || s.requireSessionAccess(ctx, perm.SessionID) != nil {
+					continue
+				}
 				logging.Info("Forwarding permission request to client", "id", perm.ID)
 				writeJSON(Event{
 					Type: EventTypePermission,
@@ -1968,8 +1971,12 @@ func (s *Server) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 
 		// Handle Permission Response
 		if msg.Type == ClientMessageTypePermission {
+			if strings.TrimSpace(msg.SessionID) == "" || s.requireSessionAccess(ctx, msg.SessionID) != nil {
+				writeJSON(Event{Type: EventTypeError, Content: "session not found or access denied", SessionID: msg.SessionID})
+				continue
+			}
 			logging.Info("Received permission response", "id", msg.PermissionID, "action", msg.Action)
-			permReq := permission.PermissionRequest{ID: msg.PermissionID}
+			permReq := permission.PermissionRequest{ID: msg.PermissionID, SessionID: msg.SessionID}
 			if msg.Action == "grant" {
 				s.app.Permissions.Grant(permReq)
 			} else {
